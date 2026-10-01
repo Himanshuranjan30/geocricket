@@ -20,6 +20,8 @@ export type GlobeApi = {
   labels: (on: boolean) => void;
   /** End of game: every guess, answer and flight path at once, framed to fit. */
   summary: (pairs: { guess: LngLat; answer: LngLat }[], padding: { top: number; bottom: number; left: number; right: number }) => void;
+  /** A career trail: numbered stumps at each ground, joined in order by flight paths, framed to fit. */
+  trail: (points: LngLat[], padding: { top: number; bottom: number; left: number; right: number }) => void;
 };
 
 // MapLibre 6 runs tiles in a module worker; postinstall copies it (and its shared chunk) into public/.
@@ -154,6 +156,7 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
 
     // A tap in the empty sky around the globe still unprojects to a point on its rim; only count taps that land on it
     // (the point projects back to where the finger was).
+    if (process.env.NODE_ENV === "development") (window as unknown as { __pmMap?: unknown }).__pmMap = map; // reel recording: place pins by coordinates
     map.on("click", (e) => {
       const back = map.project(e.lngLat);
       if (Math.hypot(back.x - e.point.x, back.y - e.point.y) > 4) return;
@@ -238,7 +241,7 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
       },
       async showAnswer(answer) {
         ++seq;
-        ball.remove(); setArc([]);
+        ball.remove(); setArc([]); clearExtra();
         stumps.setLngLat(answer).addTo(map);
         map.flyTo({ center: answer, zoom: 4, padding: { top: 170, bottom: Math.round(container.clientHeight * 0.42), left: 0, right: 0 }, duration: dur(1100) });
         await settle(dur(1100) + 200);
@@ -252,7 +255,17 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
           extra.push(new Marker({ element: el("pm-ball"), anchor: "bottom" }).setLngLat(p.guess).addTo(map));
           extra.push(new Marker({ element: el("pm-stumps pm-numbered", `<i></i><i></i><i></i><b></b><b></b><span>${i + 1}</span>`), anchor: "bottom" }).setLngLat(p.answer).addTo(map));
         });
-        const pts = pairs.flatMap((p) => [p.guess, p.answer]);
+        frame(pairs.flatMap((p) => [p.guess, p.answer]), padding);
+      },
+      trail(points, padding) {
+        seq++;
+        ball.remove(); stumps.remove(); clearExtra();
+        setArcs(points.slice(1).map((p, i) => greatCircle(points[i], p)));
+        points.forEach((p, i) => extra.push(new Marker({ element: el("pm-stumps pm-numbered", `<i></i><i></i><i></i><b></b><b></b><span>${i + 1}</span>`), anchor: "bottom" }).setLngLat(p).addTo(map)));
+        frame(points, padding);
+      },
+    };
+    function frame(pts: LngLat[], padding: { top: number; bottom: number; left: number; right: number }) {
         if (!pts.length) return;
         // fitBounds is Mercator-based and misframes a globe; centre on the spherical mean and zoom by spread instead.
         const r = Math.PI / 180;
@@ -261,8 +274,7 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
         const spreadDeg = Math.max(...pts.map((p) => distanceKm(center, p) / 111.2));
         const zoom = Math.min(5, startZoom(container) + Math.max(0, Math.log2(50 / Math.max(spreadDeg, 1))));
         map.easeTo({ center, zoom, padding, duration: dur(1400) });
-      },
-    };
+    }
     map.once("load", () => {
       // Start the credit collapsed to its (i) button; it opens on tap (licence needs it available, not blocking the globe).
       container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");

@@ -36,7 +36,7 @@ async function make(l: Legend) {
   if (!ref) { console.log(`- ${l.id}: no reference photo, skipped`); return; }
   const dir = `public/legends/${l.id}`; mkdirSync(dir, { recursive: true });
   const photo = { inlineData: { mimeType: ref.endsWith("png") ? "image/png" : ref.endsWith("webp") ? "image/webp" : "image/jpeg", data: readFileSync(ref).toString("base64") } };
-  const kit = `wearing a cricket jersey in ${l.kit.shirt} with ${l.kit.trim} trim${l.number ? ` and the number ${l.number} small on the chest` : ""}`;
+  const kit = `wearing a cricket jersey in ${l.kit.shirt} with ${l.kit.trim} trim${l.number ? ` and the number ${l.number} small on the chest` : ", with no number or text anywhere on the shirt"}`;
 
   const svg = renderToStaticMarkup(createElement(Toon, { legend: { ...l, art: false }, size: 512 })).replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
   const format = { inlineData: { mimeType: "image/png", data: (await sharp(Buffer.from(svg)).png().toBuffer()).toString("base64") } };

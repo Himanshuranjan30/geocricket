@@ -195,8 +195,12 @@ export async function addXp(pid: string, xp: number, { league = 1 } = {}) {
 /** IST days on which a player finished any scored game (Daily, Test Match, Evening Daily, Match Day), newest first. */
 export async function playedDays(pid: string) {
   const db = await getDb();
-  const rows = await db.select({ at: scores.createdAt }).from(scores).where(eq(scores.playerId, pid));
-  return [...new Set(rows.map((r) => istDayOf(r.at.getTime())))].sort().reverse();
+  // A finished Who's the Player? day counts for the streak like any finished game.
+  const [rows, who] = await Promise.all([
+    db.select({ at: scores.createdAt }).from(scores).where(eq(scores.playerId, pid)),
+    db.select({ at: schema.whoResults.createdAt }).from(schema.whoResults).where(eq(schema.whoResults.playerId, pid)),
+  ]);
+  return [...new Set([...rows, ...who].map((r) => istDayOf(r.at.getTime())))].sort().reverse();
 }
 /** Days saved with a rewarded ad (owned rows "save:<day>", lib/streak.ts saveable). */
 export async function savedDays(pid: string) {

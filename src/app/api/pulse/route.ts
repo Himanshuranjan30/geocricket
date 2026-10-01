@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server";
 import { tickDueCups } from "@/lib/cups";
 import { maybeDailyMaintenance } from "@/lib/maintenance";
 import { getDb, schema } from "@/db";
+import { dayStartMs, istDate } from "@/lib/game";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,9 @@ export async function GET() {
   const db = await getDb();
   const { seen, players, duels, duelPlayers } = schema;
   const since = Date.now() - ONLINE_MS;
-  const [[{ n }], recentIds, [last]] = await Promise.all([
+  const [[{ n }], [{ today }], recentIds, [last]] = await Promise.all([
     db.select({ n: sql<number>`count(distinct ${seen.playerId})::int` }).from(seen).where(gt(seen.atMs, since)),
+    db.select({ today: sql<number>`count(distinct ${seen.playerId})::int` }).from(seen).where(gt(seen.atMs, dayStartMs(istDate()))),
     db.selectDistinct({ id: seen.playerId, at: seen.atMs }).from(seen).where(gt(seen.atMs, since)).orderBy(desc(seen.atMs)).limit(12),
     db.select({ id: duels.id, state: duels.state }).from(duels).where(and(eq(duels.kind, "live"), eq(duels.status, "done"))).orderBy(desc(duels.createdAt)).limit(1),
   ]);
@@ -40,5 +42,5 @@ export async function GET() {
       };
     }
   }
-  return NextResponse.json({ online: n, faces, recent }, { headers: { "cache-control": "public, s-maxage=20, stale-while-revalidate=40" } });
+  return NextResponse.json({ online: n, today, faces, recent }, { headers: { "cache-control": "public, s-maxage=20, stale-while-revalidate=40" } });
 }

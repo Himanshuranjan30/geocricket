@@ -8,14 +8,15 @@ import { Avatar } from "./Avatar";
 import { Flag } from "./Flag";
 import { Rank } from "./Rank";
 
-type Id = "ranking" | "points" | "accuracy" | "streak" | "effort" | "h2h" | "countries";
+type Id = "ranking" | "points" | "who" | "accuracy" | "streak" | "effort" | "h2h" | "countries";
 type Row = { rank: number; handle: string; avatar: string; country: string | null; value: number; sub: string; provisional: boolean; me: boolean };
 type Board = { board: Id; count: number; top: Row[]; me: (Row & { ranked: boolean; guest: boolean }) | null };
 type Mine = { value: number; rank: number; of: number; ranked: boolean; provisional: boolean; sub: string } | null;
 
 const TABS: { id: Id; label: string; unit: string; what: string }[] = [
   { id: "ranking", label: "Ranking", unit: "pts", what: "How much of the maximum you score across every game (Tests count double, recent games count most), scaled by how regularly you play. Out of 1,000, like the ICC rankings." },
-  { id: "points", label: "Points", unit: "pts", what: "Every point from the Daily, Evening Daily and both Test Matches, added up." },
+  { id: "points", label: "Points", unit: "pts", what: "Every point from the Daily, Evening Daily, both Test Matches and Mystery Cricketer, added up." },
+  { id: "who", label: "Mystery", unit: "pts", what: "Mystery Cricketer points: up to 300 a day, more for naming the cricketer in fewer clues." },
   { id: "accuracy", label: "Accuracy", unit: "avg", what: "Average points per ball over the last 30 days. 25 balls to qualify." },
   { id: "streak", label: "Streak", unit: "days", what: "Days in a row with a finished game. Freezes and saves keep it alive." },
   { id: "effort", label: "Effort", unit: "XP", what: "League XP earned this week in any mode. Resets Monday." },
@@ -77,7 +78,7 @@ export function Boards({ full = false, className = "" }: { full?: boolean; class
       </div>
 
       <div className="flex items-center justify-between gap-2 text-xs text-muted">
-        {tab === "points" ? (
+        {tab === "points" || tab === "who" ? (
           <div className="flex gap-1" role="tablist" aria-label="Period">
             {(["day", "week", "month"] as const).map((p) => (
               <button key={p} role="tab" aria-selected={period === p} onClick={() => setPeriod(p)}

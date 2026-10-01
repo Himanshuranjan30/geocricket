@@ -1,18 +1,20 @@
 "use client";
 
-import { Archive, CalendarCheck, Crown, Ghost, Info, Lightning, List, Medal, Play, Ranking, SquaresFour, Target, Trophy, UserCircle, UsersThree, X, GearSix } from "@phosphor-icons/react";
+import { Archive, CalendarCheck, Crown, Ghost, Info, Lightning, List, Medal, Play, Ranking, SquaresFour, Target, Trophy, UserCircle, UserFocus, UsersThree, X, GearSix, Sword } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 // Every destination, grouped the way players think about them. Same options as the desktop nav and mode cards.
 const GROUPS: { title: string; items: { href: string; label: string; sub: string; icon: React.ReactNode }[] }[] = [
   { title: "Play", items: [
+    { href: "/mystery", label: "Mystery Cricketer", sub: "New · 3 cricketers a day", icon: <UserFocus weight="duotone" /> },
     { href: "/play", label: "Daily Challenge", sub: "5 balls · new every day", icon: <CalendarCheck weight="duotone" /> },
     { href: "/ghost", label: "Ghost Race", sub: "Instant 1v1 vs a real player's run", icon: <Ghost weight="duotone" /> },
     { href: "/nets", label: "Nets", sub: "Unlimited practice · earn XP", icon: <Target weight="duotone" /> },
     { href: "/archive", label: "Archive", sub: "Every past game", icon: <Archive weight="duotone" /> },
   ] },
   { title: "Compete", items: [
+    { href: "/mystery/duel", label: "Name Race 1v1", sub: "First to name the cricketer", icon: <Sword weight="duotone" /> },
     { href: "/live", label: "Live 1v1", sub: "Same ball, same moment", icon: <Lightning weight="duotone" /> },
     { href: "/cups", label: "Cups", sub: "Knockout tournaments", icon: <Trophy weight="duotone" /> },
     { href: "/league", label: "League", sub: "Weekly · move up a tier", icon: <Ranking weight="duotone" /> },

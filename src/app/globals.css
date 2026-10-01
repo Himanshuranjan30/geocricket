@@ -291,3 +291,13 @@ a:hover > .mode-card, button:hover > .mode-card { transform: translateY(-2px); f
 @media (min-width: 1800px) and (min-height: 950px) { .tv-ui { zoom: 1.25; } }
 @media (min-width: 2400px) and (min-height: 1300px) { .tv-ui { zoom: 1.6; } }
 @media (min-width: 3200px) and (min-height: 1700px) { .tv-ui { zoom: 2; } }
+
+/* Google had no ad for this slot: drop the box and its "Advertisement" label instead of leaving a blank hole. */
+.ad-wrap:has(ins[data-ad-status="unfilled"]) { display: none; }
+
+/* Who's the Player? */
+.mystery { color: #8F84E8; background: radial-gradient(circle at 50% 35%, #3A2FA0, #1b1340 70%); box-shadow: 0 0 0 2px rgba(245,192,0,.55), 0 0 22px rgba(245,192,0,.25); animation: mysteryGlow 2.4s ease-in-out infinite; }
+@keyframes mysteryGlow { 50% { box-shadow: 0 0 0 2px rgba(245,192,0,.9), 0 0 30px rgba(245,192,0,.45); } }
+.face-pop { animation: facePop .55s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes facePop { from { transform: scale(.4) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mystery, .face-pop { animation: none; } }

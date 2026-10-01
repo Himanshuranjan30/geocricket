@@ -1,7 +1,7 @@
 "use client";
 
 import { plural } from "@/lib/game";
-import { ArrowRight, CalendarCheck, CaretDown, Fire, Lightning, Target, Trophy, UsersThree, Sword, CalendarBlank, PencilSimple, Crown, Ghost, Ranking, ClockCounterClockwise, Snowflake } from "@phosphor-icons/react";
+import { ArrowRight, CalendarBlank, CalendarCheck, CaretDown, ClockCounterClockwise, Crown, Fire, Ghost, Lightning, PencilSimple, Ranking, Snowflake, Sword, Target, Trophy, UsersThree } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,8 @@ import { legendOf } from "@/lib/legends";
 import { timeAt, untilLabel } from "@/lib/resetTime";
 import { AccountMenu } from "./AccountMenu";
 import { Boards } from "./Boards";
+import { WhoCard } from "./WhoCard";
+import { AdSlot } from "./AdSlot";
 import { MobileNav } from "./MobileNav";
 import { LegendSpotlight } from "./LegendSpotlight";
 import { SignInNudge } from "./SignInNudge";
@@ -33,7 +35,7 @@ import { Floodlights, Ticker } from "./Stadium";
 const globeChunk = typeof window !== "undefined" ? import("./Globe") : null;
 const Globe = dynamic(() => globeChunk ?? import("./Globe"), { ssr: false });
 
-type Pulse = { online: number; faces: string[]; recent: { players: { handle: string; avatar: string; country: string | null }[]; winner: number | null } | null };
+type Pulse = { online: number; today: number; faces: string[]; recent: { players: { handle: string; avatar: string; country: string | null }[]; winner: number | null } | null };
 type Edition = { key: string; kind: string; title: string; opensMs: number; closesMs: number; balls: number; live: boolean };
 
 /** The home dashboard at /: modes on the left, your batter standing on the globe, today's board on the right. */
@@ -69,8 +71,9 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
     fetch("/api/editions", { cache: "no-store" }).then((r) => r.json()).then((d) => setEds(d.editions ?? []), () => setEds([]));
     const poll = () => fetch("/api/pulse", { cache: "no-store" }).then((r) => r.json()).then(setPulse, () => {});
     poll();
+    const c = setTimeout(() => setNow(Date.now()), 0); // the page is prerendered, so its first render carries the build time: catch up right away
     const a = setInterval(() => { if (!document.hidden) poll(); }, 30_000), b = setInterval(() => setNow(Date.now()), 60_000);
-    return () => { clearInterval(a); clearInterval(b); };
+    return () => { clearInterval(a); clearInterval(b); clearTimeout(c); };
   }, []);
 
   // First-time and lapsed visitors (no game in the last two weeks) get a one-line pitch; regulars get a clean screen.
@@ -108,13 +111,14 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
   // Today's games first, then everything else; on phones the leaderboards sit between the two so they're seen early.
   const today4 = (
     <div className="flex flex-col gap-3">
+      <WhoCard />
       <SignInNudge variant="banner" />
       <StreakOptIn />
       <StreakCard streak={me?.streak ?? 0} played={me?.played ?? []} frozen={me?.frozen ?? []} atRisk={!!me?.streakAtRisk} />
       <StreakSaver streak={me?.saveStreak ?? 0} />
       <div className="flex flex-col gap-0.5 rounded-2xl bg-white/5 px-4 py-2.5 ring-1 ring-white/10" aria-live="polite">
         <span className="display text-sm">Today <span className={played === 4 ? "text-ok" : "text-[#F5C000]"}>{played}/4</span> games played</span>
-        <span className="text-[11px] text-[#CFC8F5]">Next: <b className="text-cream">{nextName}</b> at {timeAt(nextAt, country)} · in {untilLabel(nextAt, now)}</span>
+        <span className="text-[11px] text-[#CFC8F5]" suppressHydrationWarning>Next: <b className="text-cream" suppressHydrationWarning>{nextName}</b> at {timeAt(nextAt, country)} · in {untilLabel(nextAt, now)}</span>
       </div>
       {(["daily", "test"] as const).map((game) => {
         // One card per game that follows the day: the open slot you haven't finished, else the next one, else done.
@@ -141,9 +145,10 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
       <ModeCard href="/league" title="League" badge={league && !league.guest ? league.name : "Weekly · 8 tiers"}
         sub={!league || league.guest ? "Sign in, earn XP, move up a tier" : league.joined ? `#${league.members.find((m) => m.me)?.rank ?? "–"} of ${league.members.length} · ends in ${untilLabel(league.endsMs, now)}` : "Earn XP in any game to join this week"}
         art={<Ranking weight="duotone" />} />
+      <ModeCard href="/mystery/duel" title="Name Race 1v1" badge="Mystery Cricketer live" art={<Sword weight="duotone" />} hot />
       <ModeCard href="/live" title="Live 1v1" badge="Quick match" art={<Lightning weight="duotone" />} hot />
       <ModeCard href="/cups" title="Cups" badge="Knockout tournaments" sub="Host one, invite friends, lift the trophy" art={<Trophy weight="duotone" />} hot
-        tag={{ text: `🏆 Daily Cup · ${timeAt(dailyCupMs, country).replace(/ IST$/, "")}`, kind: now < dailyCupMs ? "soon" : "live" }} />
+        tag={{ text: `Daily Cup · ${timeAt(dailyCupMs, country).replace(/ IST$/, "")}`, kind: now < dailyCupMs ? "soon" : "live" }} />
       {match && <ModeCard href={`/match/${match.key}`} title="Match Day" badge="Live now" sub={`${match.balls} balls`} art={<Trophy weight="duotone" />} hot />}
       <ModeCard href="/locker" title="Legends Locker" badge="30 legends" sub="Play as cricket's greatest" art={<Crown weight="duotone" />} />
       <ModeCard href="/archive" title="Archive" sub="Every past game · where would you rank?" art={<ClockCounterClockwise weight="duotone" />} />
@@ -181,7 +186,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         <nav className="hidden items-center gap-1 lg:flex">
           <Menu label="Singleplayer" items={[["/play", "Daily Challenge"], ["/nets", "Nets"], ["/archive", "Archive"]]} />
           <Link href="/locker" className="display px-3 py-2 text-sm !text-[#F5C000] !no-underline hover:brightness-110">Legends</Link>
-          <Menu label="Multiplayer" items={[["/live", "Live 1v1"], ["/cups", "Cups"], ["/groups", "Groups"]]} />
+          <Menu label="Multiplayer" items={[["/live", "Live 1v1"], ["/mystery/duel", "Name Race 1v1"], ["/cups", "Cups"], ["/groups", "Groups"]]} />
           <Link href="/leaderboard" className="display px-3 py-2 text-sm !text-cream !no-underline hover:text-ok">Leaderboards</Link>
           <Link href="/how-it-works" className="display hidden whitespace-nowrap px-3 py-2 text-xs xl:block !text-muted !no-underline hover:!text-cream">How to play</Link>
         </nav>
@@ -215,20 +220,25 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
             <ArrowRight size={16} className="text-muted" />
           </Link>
         )}
-        {pulse && pulse.online > 0 && (
+        {/* Social proof, always a true number: who's playing this minute, else today's players once there are a few (an
+            empty room reads worse than no counter). */}
+        {pulse && (pulse.online > 0 || pulse.today >= 5) && (
           <p className="flex items-center gap-2 text-sm text-muted">
             <span className="flex -space-x-2">{pulse.faces.map((f, i) => <Avatar key={i} code={f} size={24} className="ring-2 ring-[var(--night)]" />)}</span>
-            <b className="text-cream">{pulse.online.toLocaleString("en-IN")}</b> playing now
+            {pulse.online > 0
+              ? <><b className="text-cream">{pulse.online.toLocaleString("en-IN")}</b> playing now</>
+              : <><b className="text-cream">{pulse.today.toLocaleString("en-IN")}</b> players today</>}
           </p>
         )}
       </div>
 
       {/* Desktop columns. On phones the same cards follow the hero. */}
       <aside className="tv-ui absolute bottom-20 left-6 top-[84px] z-10 hidden w-[250px] overflow-y-auto pb-[72px] [mask-image:linear-gradient(to_bottom,#000_calc(100%-56px),transparent)] [scrollbar-width:none] lg:block"><div className="flex flex-col gap-3">{today4}{more}</div></aside>
-      <div className="tv-ui absolute bottom-24 right-6 top-36 z-10 hidden w-[340px] overflow-y-auto [scrollbar-width:none] lg:block"><Boards /></div>
+      <div className="tv-ui absolute bottom-24 right-6 top-36 z-10 hidden w-[340px] overflow-y-auto [scrollbar-width:none] lg:block"><Boards /><AdSlot slot={process.env.NEXT_PUBLIC_AD_SLOT_HUBS} className="mt-3" /></div>
       <div className="relative z-10 flex flex-col gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] lg:hidden">
         <div id="modes" className="scroll-mt-4">{today4}</div>
         <div id="boards" className="scroll-mt-4"><Boards /></div>
+        <AdSlot slot={process.env.NEXT_PUBLIC_AD_SLOT_HUBS} />
         {more}
       </div>
       <MobileNav onPlay={play} />
@@ -273,12 +283,12 @@ function Menu({ label, items }: { label: string; items: [string, string][] }) {
 function ModeCard({ title, sub, badge, art, href, onClick, hot, tag }: { title: string; sub?: string; badge?: string; art: React.ReactNode; href?: string; onClick?: () => void; hot?: boolean; tag?: { text: string; kind: string } | null }) {
   const body = (
     <span className="relative block">
-    {tag && <span key={tag.text} className={`mode-tag display ${tag.kind}`}>{tag.text}</span>}
+    {tag && <span key={tag.text} className={`mode-tag display ${tag.kind}`} suppressHydrationWarning>{tag.text}</span>}
     <span className={`mode-card ${hot ? "hot" : ""} ${href || onClick ? "" : "opacity-80"}`}>
       <span className="mode-text relative z-10 flex flex-col gap-1.5">
         <span className="display text-[17px] italic leading-none xl:text-[19px]">{title}</span>
         {badge && <span className="display text-[11px] uppercase italic tracking-wide text-[#F5C000]">{badge}</span>}
-        {sub && <span className="text-xs italic text-[#CFC8F5]">{sub}</span>}
+        {sub && <span className="text-xs italic text-[#CFC8F5]" suppressHydrationWarning>{sub}</span>}
       </span>
       <span className="mode-art">{art}</span>
     </span>

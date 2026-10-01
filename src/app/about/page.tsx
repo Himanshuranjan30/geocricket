@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Page } from "@/components/Page";
 import CREDITS from "@/content/legend-credits.json";
+import PHOTOS from "@/content/who-photos.json";
 import { LEGENDS } from "@/lib/legends";
 
 export const metadata: Metadata = { title: "About" };
@@ -21,6 +22,12 @@ export default function About() {
       <ul className="columns-1 gap-6 text-xs sm:columns-2">
         {Object.entries(CREDITS as Record<string, { url: string; author: string; license: string }>).map(([id, c]) => (
           <li key={id}>{LEGENDS.find((l) => l.id === id)?.name ?? id}: <a href={c.url} target="_blank" rel="noopener">photo</a> by {c.author || "unknown"}, {c.license}</li>
+        ))}
+      </ul>
+      <p>Player photos in Mystery Cricketer are thumbnails of Wikimedia Commons images, used under their free licences.</p>
+      <ul className="columns-1 gap-6 text-xs sm:columns-2">
+        {Object.entries(PHOTOS as Record<string, { name: string; url: string; author: string; license: string }>).map(([id, c]) => (
+          <li key={id}>{c.name}: <a href={c.url} target="_blank" rel="noopener">photo</a> by {c.author}, {c.license}</li>
         ))}
       </ul>
     </Page>

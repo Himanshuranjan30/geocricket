@@ -18,7 +18,7 @@ type Row = Legend & { owned: boolean };
 type Data = { level: number; legends: Row[]; payments: boolean };
 type Me = { profile: Profile | null; user: Account; googleEnabled: boolean; suggestedCountry: string | null; level?: { level: number } };
 
-const FLAG: Record<string, string> = { IN: "IN", AU: "AU", PK: "PK", ZA: "ZA", LK: "LK", GB: "GB" };
+const FLAG: Record<string, string> = { IN: "IN", AU: "AU", PK: "PK", ZA: "ZA", LK: "LK", GB: "GB", AF: "AF", BD: "BD" };
 const MOODS: Mood[] = ["celebrate", "happy", "shocked", "nervous", "sad"];
 
 /** /locker: all legends, which you own, what unlocks next; equip or buy. */

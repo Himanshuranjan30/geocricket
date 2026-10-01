@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { EmailLink } from "@/components/EmailLink";
 import { Page } from "@/components/Page";
 
 export const metadata: Metadata = { title: "Refunds" };
@@ -16,7 +17,7 @@ export default function Refunds() {
         <li>Refunds go back to your original payment method. Most arrive within 5–10 business days.</li>
       </ul>
       <h2>How to ask</h2>
-      <p>Email <a href="mailto:support@geocricket.app">support@geocricket.app</a> with the email on your receipt. Payments are processed by our reseller, Dodo Payments, who may also handle your request.</p>
+      <p><EmailLink subject="Refund request">Email us</EmailLink> with the email on your receipt. Payments are processed by our reseller, Dodo Payments, who may also handle your request.</p>
     </Page>
   );
 }

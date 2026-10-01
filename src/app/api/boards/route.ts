@@ -4,7 +4,7 @@ import { playerId } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
-// GET ?board=ranking|points|accuracy|streak|effort|h2h|countries[&period=day|week|month][&limit=10]  → one board
+// GET ?board=ranking|points|who|accuracy|streak|effort|h2h|countries[&period=day|week|month][&limit=10]  → one board
 // GET ?summary=1 → the viewer's standing on every board (lib/boards.ts)
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;

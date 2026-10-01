@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import { EmailLink } from "@/components/EmailLink";
 import { Page } from "@/components/Page";
 
 export const metadata: Metadata = { title: "Privacy", description: "What GeoCricket stores, who processes it, and how to get it deleted.", alternates: { canonical: "/privacy" } };
 
-const EMAIL = "support@geocricket.app";
 
 export default function Privacy() {
   return (
@@ -56,13 +56,13 @@ export default function Privacy() {
 
       <h2>Your rights</h2>
       <p>
-        You can ask us to show, correct or delete your data, or to withdraw a consent you gave (for example, notifications). Email <a href={`mailto:${EMAIL}`}>{EMAIL}</a> from
+        You can ask us to show, correct or delete your data, or to withdraw a consent you gave (for example, notifications). <EmailLink subject="My GeoCricket data">Email us</EmailLink> from
         your Google account&apos;s address, or with your leaderboard handle if you play as a guest. Clearing this site&apos;s cookies drops your guest player ID from your browser.
       </p>
 
       <h2>Grievance officer</h2>
       <p>
-        For any complaint about your data or your purchases, contact our Grievance Officer at <a href={`mailto:${EMAIL}?subject=Grievance`}>{EMAIL}</a> (subject &ldquo;Grievance&rdquo;).
+        For any complaint about your data or your purchases, <EmailLink subject="Grievance">email our Grievance Officer</EmailLink> (subject &ldquo;Grievance&rdquo;).
         We acknowledge complaints within 48 hours and resolve them within 30 days.
       </p>
     </Page>

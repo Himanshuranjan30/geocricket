@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   allowedDevOrigins: ["127.0.0.1"], // QA: a second hostname = a second, independent player in the same browser
   serverExternalPackages: ["@electric-sql/pglite"],
+  // Who's the Player? was renamed Mystery Cricketer: old links (shared results, challenge links) keep working.
+  async redirects() {
+    return [{ source: "/who", destination: "/mystery", permanent: true }, { source: "/who/:path*", destination: "/mystery/:path*", permanent: true }];
+  },
   // Static game assets rarely change: let browsers and the CDN keep them for a week.
   async headers() {
     return ["/maplibre/:path*", "/flags/:path*", "/logos/:path*", "/world.topo.json", "/globe-poster.webp"].map((source) => ({

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { AccountMenu } from "./AccountMenu";
+import { SideRails } from "./AdSlot";
 import { Logo } from "./Logo";
 
 /** Shell for text pages: leaderboard, archive, moments, info. */
 export function Page({ title, eyebrow, children }: { title: string; eyebrow?: string; children: React.ReactNode }) {
   return (
     <div className="min-h-full bg-[radial-gradient(120%_60%_at_50%_0%,#3A2FA0_0%,var(--night)_40%,var(--deep)_100%)] px-4 pb-16 pt-[calc(env(safe-area-inset-top)+16px)]">
+      <SideRails />
       <div className="tv-ui mx-auto flex min-w-0 max-w-[640px] flex-col gap-6">
         <header className="flex items-center justify-between">
           <Logo />

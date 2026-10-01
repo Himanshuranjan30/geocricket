@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, inArray, like, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, like, lte, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { dayEndMs, dayStartMs, istDate, MULTIPLIERS, periodRange, type Period } from "./game";
 import { currentWeek } from "./league";
@@ -7,7 +7,8 @@ import { leagueName } from "./leagueRules";
 import { accuracyOf, rankingOf, windowStart, WINDOW_DAYS, type RankedGame } from "./rankingRules";
 import { istDayOf, streakOf } from "./streak";
 
-const { scores, rounds, players, guesses, owned, leagueMembers, duels, duelPlayers } = schema;
+const { scores, rounds, players, guesses, owned, leagueMembers, duels, duelPlayers, whoResults } = schema;
+const WHO_MAX = 300; // three players × 100 (lib/whoRules.ts)
 
 // Leaderboards that show a player's real value, each measuring one thing honestly (lib/rankingRules.ts):
 //   ranking  GeoCricket Ranking: form across every scored game × consistency (the headline)
@@ -15,10 +16,11 @@ const { scores, rounds, players, guesses, owned, leagueMembers, duels, duelPlaye
 //   accuracy average points per ball over the last 30 days (25-ball minimum)
 //   streak   current daily streak (any game counts; freezes and saves apply)
 //   effort   league XP earned this week in any mode
+//   who      Who's the Player? points for today / this week / this month
 //   h2h      Elo from rated live 1v1s and cups (3-match minimum)
 // Fair play: signed-in players only, and anyone with a flagged (suspicious) game in the last 30 days sits out every
 // board. They still see their own row, so a cheater can't tell. Countries rank by their players' average Ranking.
-export const BOARDS = ["ranking", "points", "accuracy", "streak", "effort", "h2h", "countries"] as const;
+export const BOARDS = ["ranking", "points", "who", "accuracy", "streak", "effort", "h2h", "countries"] as const;
 export type BoardId = (typeof BOARDS)[number];
 
 type Entry = { pid: string; value: number; sub: string; provisional?: boolean; tie?: number };
@@ -52,6 +54,10 @@ async function recentGames() {
     const max = mults.reduce((s, m) => s + 100 * m, 0) || 1;
     (by.get(r.pid) ?? by.set(r.pid, []).get(r.pid)!).push({ day: istDayOf(r.at.getTime()), pct: r.total / max, balls: mults.length });
   }
+  // Who's the Player? days count as a 3-ball game.
+  const who = await db.select({ pid: whoResults.playerId, total: whoResults.total, at: whoResults.createdAt }).from(whoResults)
+    .where(gte(whoResults.createdAt, new Date(dayStartMs(windowStart(istDate(), WINDOW_DAYS)))));
+  for (const r of who) (by.get(r.pid) ?? by.set(r.pid, []).get(r.pid)!).push({ day: istDayOf(r.at.getTime()), pct: r.total / WHO_MAX, balls: 3 });
   return by;
 }
 
@@ -64,17 +70,23 @@ async function entries(board: Exclude<BoardId, "countries">, period: Period): Pr
       return r ? [{ pid, value: r.points, provisional: r.provisional, sub: `form ${r.form} · consistency ${r.consistency}% · ${r.games} game${r.games === 1 ? "" : "s"}` }] : [];
     });
   }
-  if (board === "points") {
+  if (board === "points" || board === "who") {
     const [start, end] = periodRange(today, period);
-    const rows = await db.select({ pid: scores.playerId, total: scores.total, at: scores.createdAt, flagged: scores.flagged }).from(scores)
-      .where(and(gte(scores.createdAt, new Date(dayStartMs(start))), sql`${scores.createdAt} <= ${new Date(dayEndMs(end))}`));
+    // By puzzle date, not play time: an old day opened from a friend's link doesn't pad this period's board.
+    const whoRows = await db.select({ pid: whoResults.playerId, total: whoResults.total, at: whoResults.createdAt }).from(whoResults)
+      .where(and(gte(whoResults.date, start), lte(whoResults.date, end)));
+    const rows = board === "who" ? whoRows.map((r) => ({ ...r, flagged: false })) : [
+      ...(await db.select({ pid: scores.playerId, total: scores.total, at: scores.createdAt, flagged: scores.flagged }).from(scores)
+        .where(and(gte(scores.createdAt, new Date(dayStartMs(start))), sql`${scores.createdAt} <= ${new Date(dayEndMs(end))}`))),
+      ...whoRows.map((r) => ({ ...r, flagged: false })),
+    ];
     const by = new Map<string, { total: number; games: number; first: number }>();
     for (const r of rows) {
       if (r.flagged) continue;
       const e = by.get(r.pid) ?? { total: 0, games: 0, first: Infinity };
       e.total += r.total; e.games++; e.first = Math.min(e.first, r.at.getTime()); by.set(r.pid, e);
     }
-    return [...by].map(([pid, e]) => ({ pid, value: e.total, tie: e.first, sub: `${e.games} game${e.games === 1 ? "" : "s"}` }));
+    return [...by].map(([pid, e]) => ({ pid, value: e.total, tie: e.first, sub: board === "who" ? `${e.games} day${e.games === 1 ? "" : "s"} played` : `${e.games} game${e.games === 1 ? "" : "s"}` }));
   }
   if (board === "accuracy") {
     const rows = await db.select({ pid: guesses.playerId, points: guesses.points }).from(guesses).where(gte(guesses.createdAt, new Date(Date.now() - 30 * 864e5)));
@@ -87,12 +99,13 @@ async function entries(board: Exclude<BoardId, "countries">, period: Period): Pr
   }
   if (board === "streak") {
     // ponytail: reads every score; fine until scores reach the millions, then keep a per-player streak column.
-    const [rows, saves] = await Promise.all([
+    const [scoreRows, whoDays, saves] = await Promise.all([
       db.select({ pid: scores.playerId, at: scores.createdAt }).from(scores),
+      db.select({ pid: whoResults.playerId, at: whoResults.createdAt }).from(whoResults),
       db.select({ pid: owned.playerId, item: owned.itemId }).from(owned).where(like(owned.itemId, "save:%")),
     ]);
     const days = new Map<string, Set<string>>(), saved = new Map<string, string[]>();
-    for (const r of rows) (days.get(r.pid) ?? days.set(r.pid, new Set()).get(r.pid)!).add(istDayOf(r.at.getTime()));
+    for (const r of [...scoreRows, ...whoDays]) (days.get(r.pid) ?? days.set(r.pid, new Set()).get(r.pid)!).add(istDayOf(r.at.getTime()));
     for (const s of saves) (saved.get(s.pid) ?? saved.set(s.pid, []).get(s.pid)!).push(s.item.slice(5));
     return [...days].flatMap(([pid, d]) => {
       const s = streakOf(d, today, saved.get(pid) ?? []);
@@ -103,9 +116,9 @@ async function entries(board: Exclude<BoardId, "countries">, period: Period): Pr
     const rows = await db.select({ pid: leagueMembers.playerId, xp: leagueMembers.xp, tier: leagueMembers.tier, at: leagueMembers.updatedMs }).from(leagueMembers).where(eq(leagueMembers.week, currentWeek()));
     return rows.filter((r) => r.xp > 0).map((r) => ({ pid: r.pid, value: r.xp, tie: r.at, sub: leagueName(r.tier) }));
   }
-  // h2h: rated matches finished (live 1v1s and cups)
+  // h2h: rated matches finished (live 1v1s, Name Races and cups; bot matches don't count)
   const rows = await db.select({ pid: duelPlayers.playerId, n: sql<number>`count(*)::int` }).from(duelPlayers).innerJoin(duels, eq(duels.id, duelPlayers.duelId))
-    .where(and(inArray(duels.kind, ["live", "cup"]), eq(duels.status, "done"))).groupBy(duelPlayers.playerId);
+    .where(and(inArray(duels.kind, ["live", "cup", "who"]), eq(duels.status, "done"), isNull(duels.ghostOf))).groupBy(duelPlayers.playerId);
   const who = await people(rows.map((r) => r.pid));
   return rows.filter((r) => r.n >= 3).map((r) => ({ pid: r.pid, value: who.get(r.pid)?.rating ?? 1200, sub: `${r.n} rated matches` }));
 }
@@ -120,6 +133,8 @@ async function compute(board: Exclude<BoardId, "countries">, period: Period) {
   const who = await people(list.map((e) => e.pid));
   return { list: list.sort(order), who, out };
 }
+/** Drop cached boards (this instance) so a result just saved shows up at once. */
+export const bustBoards = () => cache.clear();
 function computed(board: Exclude<BoardId, "countries">, period: Period) {
   const key = `${board}:${period}`, hit = cache.get(key);
   if (hit && Date.now() - hit.at < 60_000) return hit.data;
@@ -169,7 +184,7 @@ async function countries(me: string | null, limit: number) {
 
 /** The viewer's standing on every board at once: the "your value" card. */
 export async function mySummary(me: string) {
-  const ids = ["ranking", "points", "accuracy", "streak", "effort", "h2h"] as const;
+  const ids = ["ranking", "points", "who", "accuracy", "streak", "effort", "h2h"] as const;
   const all = await Promise.all(ids.map((id) => board(id, me, { limit: 0 })));
   return Object.fromEntries(ids.map((id, i) => [id, all[i].me ? { value: all[i].me!.value, rank: all[i].me!.rank, of: all[i].count, ranked: all[i].me!.ranked, provisional: all[i].me!.provisional, sub: all[i].me!.sub } : null]));
 }

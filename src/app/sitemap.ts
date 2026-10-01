@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ({ url: `${SITE}${path}`, ...(changeFrequency === "daily" ? { lastModified: today } : {}), changeFrequency, priority });
   const [moments, grounds, players, dates] = await Promise.all([publicMoments(), groundHubs(), playerHubs(), pastDates().catch(() => [] as string[])]);
   return [
-    page("/", 1, "daily"), page("/play", 0.9, "daily"), page("/cups", 0.8, "daily"), page("/live", 0.7), page("/nets", 0.7),
+    page("/", 1, "daily"), page("/mystery", 0.95, "daily"), page("/mystery/duel", 0.8), page("/play", 0.9, "daily"), page("/cups", 0.8, "daily"), page("/live", 0.7), page("/nets", 0.7),
     page("/leaderboard", 0.6, "daily"), page("/grounds", 0.8), page("/players", 0.8), page("/moments", 0.8),
     page("/how-it-works", 0.5, "monthly"), page("/about", 0.4, "monthly"), page("/archive", 0.5, "daily"), page("/locker", 0.4),
     ...grounds.map((g) => page(`/grounds/${g.slug}`, 0.7)),

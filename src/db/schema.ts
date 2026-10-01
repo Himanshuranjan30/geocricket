@@ -365,3 +365,47 @@ export const feedback = pgTable(
   },
   (t) => [index("feedback_status").on(t.status, t.createdMs)],
 );
+
+// "Who's the Player?" daily (scripts/migrations/2026-10-01-who.sql). Puzzles and the schedule live in src/content/who.json.
+// One row per guess or skip: `step` is the clue the player was on (0-4), so a retry of the same tap can't count twice.
+export const whoGuesses = pgTable(
+  "who_guesses",
+  {
+    playerId: text("player_id").notNull(),
+    date: text("date").notNull(),
+    idx: integer("idx").notNull(),
+    step: integer("step").notNull(),
+    pick: text("pick"), // guessed player id; null = skipped to the next clue
+    correct: boolean("correct").notNull().default(false),
+    atMs: bigint("at_ms", { mode: "number" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.playerId, t.date, t.idx, t.step] })],
+);
+
+export const whoResults = pgTable(
+  "who_results",
+  {
+    playerId: text("player_id").notNull(),
+    date: text("date").notNull(),
+    total: integer("total").notNull(),
+    steps: jsonb("steps").$type<(number | null)[]>().notNull(), // clue each puzzle was solved on (0-4), null = missed
+    ms: integer("ms").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.playerId, t.date] }), index("who_results_date").on(t.date, t.total)],
+);
+
+// Who's the Player? 1v1 Name Race (duels kind "who"): one buzz per player per clue; the key is the wrong-name lockout.
+export const whoBuzzes = pgTable(
+  "who_buzzes",
+  {
+    duelId: text("duel_id").notNull(),
+    playerId: text("player_id").notNull(),
+    round: integer("round").notNull(),
+    clue: integer("clue").notNull(),
+    pick: text("pick").notNull(),
+    correct: boolean("correct").notNull(),
+    atMs: bigint("at_ms", { mode: "number" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.duelId, t.playerId, t.round, t.clue] })],
+);

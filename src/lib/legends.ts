@@ -19,7 +19,8 @@ export type Legend = {
 const KITS = {
   IN: { shirt: "#1C5FD4", trim: "#FF8A1F" }, AU: { shirt: "#F5C000", trim: "#0F6B3A" }, WI: { shirt: "#7B1E3A", trim: "#F5C000" },
   PK: { shirt: "#01723A", trim: "#FFFFFF" }, ZA: { shirt: "#0F8A4F", trim: "#F5C000" }, LK: { shirt: "#1C3F94", trim: "#F5C000" },
-  GB: { shirt: "#1A2B5F", trim: "#D2283C" },
+  GB: { shirt: "#1A2B5F", trim: "#D2283C" }, AF: { shirt: "#1E5BC6", trim: "#D32011" },
+  BD: { shirt: "#006A4E", trim: "#F42A41" },
 } satisfies Record<string, Kit>;
 
 const BLACK = "#1B1411", BROWN = "#4A2F22", BLONDE = "#E3C06A", GINGER = "#B8502A";
@@ -60,6 +61,36 @@ export const LEGENDS: Legend[] = [
   L("kallis", "Jacques Kallis", "ZA", "All-rounder", 3, "Textbook cover drive", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "stubble", headwear: "none" }, 23),
   L("murali", "Muttiah Muralitharan", "LK", "Off-spinner", 8, "Wide-eyed doosra", { skin: DEEP, hair: "short", hairColor: BLACK, facial: "none", headwear: "none" }, 37),
   L("stokes", "Ben Stokes", "GB", "All-rounder", 55, "The Headingley roar", { skin: FAIR, hair: "short", hairColor: GINGER, facial: "beard", headwear: "none" }, 13),
+  // 2026-10 additions: who's trending now, the young breakout stars, and the all-time greats the roster lacked.
+  // Young stars unlock early, the biggest names later (same ladder as above). Shirt number 0 = not shown.
+  L("sooryavanshi", "Vaibhav Sooryavanshi", "IN", "Batter", 0, "Fearless first-ball sixes", { skin: TAN, hair: "short", hairColor: BLACK, facial: "none", headwear: "none" }, 2),
+  L("shafali", "Shafali Verma", "IN", "Batter", 0, "Powerplay boundary blitz", { skin: TAN, hair: "short", hairColor: BLACK, facial: "none", headwear: "none" }, 3),
+  L("kishan", "Ishan Kishan", "IN", "Wicketkeeper", 32, "210 against Bangladesh", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "none", headwear: "none" }, 4),
+  L("jemimah", "Jemimah Rodrigues", "IN", "Batter", 0, "127* in the World Cup semi", { skin: TAN, hair: "ponytail", hairColor: BLACK, facial: "none", headwear: "none" }, 5),
+  L("siraj", "Mohammed Siraj", "IN", "Fast bowler", 0, "The \"Siuuu\" celebration", { skin: DEEP, hair: "short", hairColor: BLACK, facial: "beard", headwear: "none" }, 6),
+  L("jaiswal", "Yashasvi Jaiswal", "IN", "Batter", 64, "Left-handed opening blitz", { skin: TAN, hair: "short", hairColor: BLACK, facial: "stubble", headwear: "none" }, 7),
+  L("shaheen", "Shaheen Shah Afridi", "PK", "Fast bowler", 10, "Arms-wide wicket celebration", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "stubble", headwear: "none" }, 8),
+  L("brook", "Harry Brook", "GB", "Batter", 88, "Ramp over the keeper", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "stubble", headwear: "none" }, 9),
+  L("samson", "Sanju Samson", "IN", "Wicketkeeper", 9, "Effortless straight sixes", { skin: DEEP, hair: "short", hairColor: BLACK, facial: "beard", headwear: "none" }, 11),
+  L("harmanpreet", "Harmanpreet Kaur", "IN", "Batter", 0, "171* against Australia", { skin: LIGHT, hair: "ponytail", hairColor: BLACK, facial: "none", headwear: "none" }, 12),
+  L("pant", "Rishabh Pant", "IN", "Wicketkeeper", 17, "One-handed falling six", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "stubble", headwear: "none" }, 14),
+  L("sky", "Suryakumar Yadav", "IN", "Batter", 63, "Scoop over fine leg", { skin: DEEP, hair: "buzz", hairColor: BLACK, facial: "beard", headwear: "none" }, 15),
+  L("rashid", "Rashid Khan", "AF", "Leg-spinner", 19, "Rapid-fire googly", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "beard", headwear: "none" }, 16),
+  L("rabada", "Kagiso Rabada", "ZA", "Fast bowler", 25, "Express-pace yorkers", { skin: DARK, hair: "buzz", hairColor: BLACK, facial: "stubble", headwear: "none" }, 17),
+  L("starc", "Mitchell Starc", "AU", "Fast bowler", 56, "First-over inswinging yorker", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "stubble", headwear: "none" }, 18),
+  L("cummins", "Pat Cummins", "AU", "Fast bowler", 30, "World Cup-winning captain", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "stubble", headwear: "none" }, 19),
+  L("jadeja", "Ravindra Jadeja", "IN", "All-rounder", 8, "Sword-twirl bat celebration", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "beard", headwear: "none" }, 20),
+  L("shakib", "Shakib Al Hasan", "BD", "All-rounder", 75, "Ice-cool left-arm spin", { skin: TAN, hair: "short", hairColor: BLACK, facial: "stubble", headwear: "none" }, 21),
+  L("hardik", "Hardik Pandya", "IN", "All-rounder", 33, "No-look lofted six", { skin: TAN, hair: "undercut", hairColor: BLACK, facial: "beard", headwear: "none" }, 22),
+  L("zaheer", "Zaheer Khan", "IN", "Fast bowler", 34, "Left-arm reverse swing", { skin: TAN, hair: "short", hairColor: BLACK, facial: "stubble", headwear: "none" }, 23),
+  L("root", "Joe Root", "GB", "Batter", 66, "Dabbed late cut", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "stubble", headwear: "none" }, 24),
+  L("anderson", "James Anderson", "GB", "Fast bowler", 9, "Late outswing", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "stubble", headwear: "none" }, 25),
+  L("babar", "Babar Azam", "PK", "Batter", 56, "Textbook cover drive", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "beard", headwear: "none" }, 26),
+  L("malinga", "Lasith Malinga", "LK", "Fast bowler", 99, "Slingy toe-crushing yorker", { skin: DEEP, hair: "curly", hairColor: BLONDE, facial: "none", headwear: "none" }, 27),
+  L("smith", "Steve Smith", "AU", "Batter", 49, "The fidgety leave", { skin: FAIR, hair: "short", hairColor: GINGER, facial: "none", headwear: "none" }, 28),
+  L("gill", "Shubman Gill", "IN", "Batter", 77, "Silky cover drive", { skin: LIGHT, hair: "short", hairColor: BLACK, facial: "stubble", headwear: "none" }, 30),
+  L("sobers", "Garfield Sobers", "WI", "All-rounder", 0, "Six sixes in an over", { skin: DARK, hair: "short", hairColor: "#9A9A9A", facial: "none", headwear: "none" }, 32),
+  L("bradman", "Don Bradman", "AU", "Batter", 0, "Test average 99.94", { skin: FAIR, hair: "short", hairColor: BROWN, facial: "none", headwear: "none" }, 39),
 ];
 
 // Legends with generated art in public/legends/<id>/ (written by scripts/legend-art.mts).

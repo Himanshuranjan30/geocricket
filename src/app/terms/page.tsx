@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { EmailLink } from "@/components/EmailLink";
 import { Page } from "@/components/Page";
 
 export const metadata: Metadata = { title: "Terms" };
@@ -16,7 +17,7 @@ export default function Terms() {
       <h2>Your content</h2>
       <p>Keep your handle respectful. We may change handles that are offensive or impersonate others.</p>
       <h2>Changes and contact</h2>
-      <p>We may update the game and these terms. Questions: <a href="mailto:support@geocricket.app">support@geocricket.app</a>.</p>
+      <p>We may update the game and these terms. Questions? <EmailLink subject="GeoCricket question">Email us</EmailLink>.</p>
     </Page>
   );
 }
