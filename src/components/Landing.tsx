@@ -1,5 +1,6 @@
 "use client";
 
+import { plural } from "@/lib/game";
 import { ArrowRight, CalendarCheck, CaretDown, Fire, Lightning, Target, Trophy, UsersThree, Sword, CalendarBlank, PencilSimple, Crown, Ghost, Ranking, ClockCounterClockwise, Snowflake } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -41,7 +42,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
   const [me, setMe] = useMe();
   const [done, setDone] = useState(0);
   const [pulse, setPulse] = useState<Pulse | null>(null);
-  const [eds, setEds] = useState<Edition[]>([]);
+  const [eds, setEds] = useState<Edition[] | null>(null); // null until loaded: slots are assumed scheduled meanwhile
   const [prog, setProg] = useState<Record<string, number>>({}); // balls played in each open timed slot
   const [now, setNow] = useState(() => Date.now()); // ticks every minute so the countdowns move
   const [setup, setSetup] = useState<"play" | "edit" | "onboard" | "legends" | null>(null);
@@ -65,7 +66,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
       if (q.has("welcome") || q.has("setup") || q.has("legend")) window.history.replaceState(null, "", "/");
     });
     fetch("/api/round", { cache: "no-store" }).then((r) => r.json()).then((r) => setDone(r.progress?.length ?? 0), () => {});
-    fetch("/api/editions", { cache: "no-store" }).then((r) => r.json()).then((d) => setEds(d.editions ?? []), () => {});
+    fetch("/api/editions", { cache: "no-store" }).then((r) => r.json()).then((d) => setEds(d.editions ?? []), () => setEds([]));
     const poll = () => fetch("/api/pulse", { cache: "no-store" }).then((r) => r.json()).then(setPulse, () => {});
     poll();
     const a = setInterval(() => { if (!document.hidden) poll(); }, 30_000), b = setInterval(() => setNow(Date.now()), 60_000);
@@ -79,14 +80,14 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
   const onPainted = useCallback(() => setPainted(true), []);
   const go = () => { track("play_clicked", { challenge: challenge ?? null }); router.push("/play"); };
   const play = () => (me?.profile ? go() : setSetup("play"));
-  const match = eds.find((e) => e.kind === "match" && e.live);
+  const match = eds?.find((e) => e.kind === "match" && e.live);
   // Four games a day at fixed IST times (SLOT_MINUTES_IST): the Daily (open from midnight), Morning Test, Evening Daily and
   // Evening Test. Every slot closes at midnight IST. The morning Daily is the dated round; the rest are timed.
   const country = me?.profile?.country;
   const today = istDate(new Date(now));
   const slots = SLOTS.map(({ game, slot }) => {
     const key = slotKey(today, game, slot), balls = game === "daily" ? 5 : 10, opensMs = slotMs(today, game, slot), closesMs = dayEndMs(today);
-    const exists = key === today || eds.some((e) => e.key === key);
+    const exists = key === today || !eds || eds.some((e) => e.key === key);
     const n = key === today ? done : prog[key] ?? 0;
     return { key, game, slot, balls, opensMs, closesMs, exists, open: exists && now >= opensMs && now <= closesMs, n, finished: n >= balls };
   });
@@ -101,7 +102,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
   const tomorrow = addDays(today, 1), nextAt = upcoming?.opensMs ?? slotMs(tomorrow, "daily", "am");
   const nextName = upcoming ? slotName(upcoming.game, upcoming.slot) : "Tomorrow's Daily";
   const slotSub = (x: (typeof slots)[number]) => x.finished ? "Done ✓"
-    : x.open ? (x.n ? `Resume · ${x.balls - x.n} balls left · closes in ${untilLabel(x.closesMs, now)}` : `Open now · closes in ${untilLabel(x.closesMs, now)}`)
+    : x.open ? (x.n ? `Resume · ${plural(x.balls - x.n, "ball")} left · closes in ${untilLabel(x.closesMs, now)}` : `Open now · closes in ${untilLabel(x.closesMs, now)}`)
     : now > x.closesMs ? "Closed" : !x.exists && now >= x.opensMs ? "Coming soon" : `Opens ${timeAt(x.opensMs, country)} · in ${untilLabel(x.opensMs, now)}`;
 
   // Today's games first, then everything else; on phones the leaderboards sit between the two so they're seen early.
@@ -204,11 +205,11 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         )}
         {pulse?.recent && (
           <Link href="/live" className="glass flex max-w-full items-center gap-2 rounded-xl px-2.5 py-2 !text-cream !no-underline hover:bg-white/10 sm:gap-2.5 sm:px-3">
-            <span className="display flex items-center gap-1 rounded-md bg-[#E5233B] px-2 py-0.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-white" />RECENT</span>
+            <span className="display flex items-center gap-1 rounded-md bg-[#E5233B] px-2 py-0.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-white" /><span className="hidden min-[400px]:inline">RECENT</span></span>
             {pulse.recent.players.map((p, i) => (
               <span key={i} className="flex min-w-0 items-center gap-1.5">
                 {i === 1 && <span className="display mr-1 text-lg italic text-[#8FB8FF]">VS.</span>}
-                <Avatar code={p.avatar} size={22} /><b className={`display max-w-[4.5rem] truncate text-sm min-[400px]:max-w-[7rem] ${pulse.recent!.winner === i ? "text-ok" : ""}`}>{p.handle}</b><Flag code={p.country} size={11} />
+                <Avatar code={p.avatar} size={22} /><b className={`display max-w-[6.5rem] truncate text-sm min-[400px]:max-w-[7rem] ${pulse.recent!.winner === i ? "text-ok" : ""}`}>{p.handle}</b><span className="hidden min-[400px]:inline-flex"><Flag code={p.country} size={11} /></span>
               </span>
             ))}
             <ArrowRight size={16} className="text-muted" />
@@ -283,8 +284,9 @@ function ModeCard({ title, sub, badge, art, href, onClick, hot, tag }: { title: 
     </span>
     </span>
   );
-  if (href) return <Link href={href} className="!no-underline">{body}</Link>;
-  if (onClick) return <button onClick={onClick} className="w-full text-left">{body}</button>;
+  const label = [tag?.text.replace(/^[^\p{L}\d]+/u, ""), title, sub].filter(Boolean).join(". ");
+  if (href) return <Link href={href} aria-label={label} className="!no-underline">{body}</Link>;
+  if (onClick) return <button onClick={onClick} aria-label={label} className="w-full text-left">{body}</button>;
   return body;
 }
 
@@ -321,7 +323,7 @@ function StreakCard({ streak, played, frozen, atRisk }: { streak: number; played
   const set = new Set(played), ice = new Set(frozen);
   return (
     <div className="relative pt-4">
-      <span className="display absolute left-4 top-1 z-10 rounded-t-lg bg-[#4B3BB8] px-3 py-1 text-[11px] uppercase tracking-wide">{streak} day{streak === 1 ? "" : "s"} streak{atRisk && streak > 1 ? " · play today" : ""}</span>
+      <span className="display absolute left-4 top-1 z-10 rounded-t-lg bg-[#4B3BB8] px-3 py-1 text-[11px] uppercase tracking-wide">{streak ? `${streak} day${streak === 1 ? "" : "s"} streak${atRisk && streak > 1 ? " · play today" : ""}` : "Start a streak today"}</span>
       <Fire weight="duotone" size={40} className={`absolute right-3 top-0 z-10 ${streak ? "text-[#FF8A3D] drop-shadow-[0_0_12px_rgba(255,138,61,.7)]" : "text-white/25"}`} />
       <div className="mode-card !block !pt-5">
         <div className="grid grid-cols-7 gap-1 text-center">

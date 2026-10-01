@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { plural } from "@/lib/game";
 import Link from "next/link";
 import { Page } from "@/components/Page";
 import { pastRounds } from "@/lib/server";
@@ -25,7 +26,7 @@ export default async function Archive() {
               <Link href={`/archive/${r.key}`} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3 !text-cream !no-underline hover:bg-panel-2">
                 <span className="min-w-0">
                   <span className="display block truncate text-lg font-bold">{name(r)}</span>
-                  <span className="text-xs text-muted">{r.balls} balls{r.players ? ` · ${r.players.toLocaleString("en-IN")} played live` : ""}</span>
+                  <span className="text-xs text-muted">{r.balls} balls{r.players ? ` · ${plural(r.players, "player")} played live` : ""}</span>
                 </span>
                 <span className="shrink-0 text-muted">{r.day ? label(r.day) : ""} →</span>
               </Link>

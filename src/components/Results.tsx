@@ -1,10 +1,11 @@
 "use client";
 
+import { plural } from "@/lib/game";
 import { ArrowRight, Check, CopySimple, Fire, Ghost, House, ImageSquare, Lightning, Sword, Target } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { tierOf } from "@/lib/game";
-import { fmtDate, shareImage, shareText, siteUrl, totalOf, type Result } from "@/lib/client";
+import { ensurePlayer, fmtDate, shareImage, shareText, siteUrl, totalOf, type Result } from "@/lib/client";
 import { levelOf, titleFor } from "@/lib/level";
 import { countryName, type Profile } from "@/lib/profile";
 import { AdSlot } from "./AdSlot";
@@ -38,6 +39,7 @@ export function Results({ profile, mode, number, date, title, duelId, questionId
   const [copied, setCopied] = useState<boolean | null>(false); // null = copying was blocked
   const [img, setImg] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<{ url: string; busy: boolean } | null>(null);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
   const dateLabel = mode === "edition" || (mode === "archive" && !number) ? (title ?? "Edition") : date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? fmtDate(date) : mode === "duel" ? "Duel" : "Nets";
   const [would, setWould] = useState<{ count: number; rank: number; percentile: number; avg: number } | null>(null); // archive: vs the live field
 
@@ -74,13 +76,15 @@ export function Results({ profile, mode, number, date, title, duelId, questionId
 
   // Challenge a friend on the same balls (Nets/archive/duel) or a fresh set (live rounds stay secret).
   async function makeChallenge() {
-    if (mode === "archive" && date) fetch(`/api/archive/rank?key=${date}&total=${total}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then(setWould, () => {});
     if (mode === "duel" && duelId) { setChallenge({ url: `${siteUrl()}/duel/${duelId}`, busy: false }); return; }
-    setChallenge({ url: "", busy: true });
+    setChallenge({ url: "", busy: true }); setChallengeError(null);
+    // Guests from the Nets have no player profile yet: make one first, so the main sharing loop never dead-ends.
+    if (!(await ensurePlayer())) { setChallenge(null); setChallengeError("Couldn't set up your player. Try again."); return; }
     const body = mode === "practice" || mode === "archive" ? { questionIds } : {};
     const res = await fetch("/api/duels", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
-    setChallenge(res.ok ? { url: `${siteUrl()}/duel/${data.id}`, busy: false } : null);
+    if (!res.ok) { setChallenge(null); setChallengeError(data.error ?? "Couldn't create the challenge. Try again."); return; }
+    setChallenge({ url: `${siteUrl()}/duel/${data.id}`, busy: false });
     track("duel_created", { from: mode });
   }
   const challengeText = (url: string) => `🏏 I scored ${total} on GeoCricket. Beat me on the same 5 balls ⚔️ ${url}`;
@@ -126,9 +130,9 @@ export function Results({ profile, mode, number, date, title, duelId, questionId
           {ranked && board?.me && (
             <div className="flex items-center justify-between gap-2.5 rounded-xl bg-panel-2 px-3 py-2.5 text-sm">
               <span>{board.count > 1
-                ? <>Better than <b className="display text-xl">{board.me.percentile}%</b> of {board.count.toLocaleString("en-IN")} players</>
+                ? <>Better than <b className="display text-xl">{board.me.percentile}%</b> of {plural(board.count, "player")}</>
                 : <>First on the board</>}</span>
-              <span className="text-muted">Rank #{board.me.rank} · avg {board.avg}</span>
+              <span className="text-muted">Rank #{board.me.rank}{board.count > 1 ? ` · avg ${board.avg}` : ""}</span>
             </div>
           )}
           {mode === "archive" && would && (
@@ -164,6 +168,7 @@ export function Results({ profile, mode, number, date, title, duelId, questionId
           <button className="btn-primary col-span-2 flex items-center justify-center gap-2 p-3.5 text-[19px]" onClick={makeChallenge} disabled={challenge?.busy}>
             <Sword weight="fill" size={20} />{challenge?.busy ? "Creating…" : "Challenge a friend"}
           </button>
+          {challengeError && <p role="alert" className="col-span-2 rounded-xl bg-ball/20 px-3 py-2 text-center text-sm">{challengeError}</p>}
           {challenge?.url && (
             <div className="col-span-2 flex flex-col gap-2 rounded-2xl border border-ok/50 bg-ok/10 p-3 text-sm">
               <span>Send this link. They play the same 5 balls, and you both see who won.</span>

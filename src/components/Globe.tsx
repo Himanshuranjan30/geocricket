@@ -152,7 +152,13 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
       if (map.isStyleLoaded()) ready(); else map.once("load", ready);
     });
 
-    map.on("click", (e) => tapRef.current([e.lngLat.lng, e.lngLat.lat]));
+    // A tap in the empty sky around the globe still unprojects to a point on its rim; only count taps that land on it
+    // (the point projects back to where the finger was).
+    map.on("click", (e) => {
+      const back = map.project(e.lngLat);
+      if (Math.hypot(back.x - e.point.x, back.y - e.point.y) > 4) return;
+      tapRef.current([e.lngLat.lng, e.lngLat.lat]);
+    });
 
     const setArcs = (lines: LngLat[][]) =>
       (map.getSource("arc") as GeoJSONSource | undefined)?.setData({

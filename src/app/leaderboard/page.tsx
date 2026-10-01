@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { plural } from "@/lib/game";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { Boards } from "@/components/Boards";
@@ -48,7 +49,7 @@ export default async function Leaderboard({ searchParams }: PageProps<"/leaderbo
         Under 5 games it&apos;s provisional. Only fair play counts: a flagged game sits a player out of every board for 30 days.
       </p>
       <h2>{title(period, date, today)} · Daily Challenge</h2>
-      <p className="-mt-2 text-sm text-muted">{lb.count.toLocaleString("en-IN")} players · {lb.countries.length} countries · average {lb.avg}. Browse any past day, week or month.</p>
+      <p className="-mt-2 text-sm text-muted">{plural(lb.count, "player")} · {lb.countries.length} {lb.countries.length === 1 ? "country" : "countries"} · average {lb.avg}. Browse any past day, week or month.</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Tabs items={PERIODS.map((p) => ({ key: p.id, label: p.label, href: href({ period: p.id, date: today }), on: period === p.id }))} />

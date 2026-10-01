@@ -36,7 +36,7 @@ export function AccountMenu({ onEdit, compact = false }: { onEdit?: () => void; 
       {guest && me.googleEnabled && (
         <button onClick={signIn} className="btn-primary hidden shrink-0 items-center gap-1.5 whitespace-nowrap px-3.5 py-2 text-sm sm:flex"><GoogleLogo weight="bold" size={16} />Sign in</button>
       )}
-      <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/10">
+      <button onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-haspopup="menu" aria-expanded={open} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/10">
         {me.profile ? <Avatar code={me.profile.avatar} size={38} className="ring-2 ring-white/20" /> : <UserCircle weight="fill" size={38} className="text-white/70" />}
         <span className={`${compact ? "hidden" : "hidden md:block"} whitespace-nowrap text-left leading-tight`}>
           <b className="display flex items-center gap-1.5 text-sm">{me.profile && !guest ? `@${me.profile.handle}` : "Guest"}{me.profile && <Flag code={me.profile.country} size={12} />}</b>

@@ -52,6 +52,11 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
   const [beat] = useState<number | null>(() => { if (typeof window === "undefined") return null; const c = Number(new URLSearchParams(window.location.search).get("c")); return Number.isFinite(c) && c > 0 ? Math.min(1000, c) : null; });
   const api = useRef<GlobeApi | null>(null);
   const [globeReady, setGlobeReady] = useState(false);
+  // The shot clock must not start before the globe is on screen (slow phones / first load): startAt waits for the first
+  // paint, capped so a stuck tile server can't block the game.
+  const painted = useRef<{ done: boolean; wake: (() => void)[] }>({ done: false, wake: [] });
+  const onPainted = useCallback(() => { painted.current.done = true; painted.current.wake.splice(0).forEach((f) => f()); }, []);
+  const globePainted = () => painted.current.done ? Promise.resolve() : new Promise<void>((ok) => { painted.current.wake.push(ok); setTimeout(ok, 15_000); });
   const [deadline, setDeadline] = useState(0); // Date.now() when the shot clock hits zero
   const [now, setNow] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
@@ -102,7 +107,8 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
 
   async function startAt(i: number) {
     setIdx(i); setPin(null); setTimedOut(false); setPhase("splash");
-    await Promise.all([api.current?.reset(), new Promise((r) => setTimeout(r, 950))]);
+    await Promise.all([globePainted(), new Promise((r) => setTimeout(r, 950))]);
+    await api.current?.reset();
     let remaining = QUESTION_SECONDS * 1000;
     if (scored) {
       // The server starts the clock and only now hands over the question text.
@@ -237,7 +243,7 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
       <div className="stars" aria-hidden />
       {/* Floodlights switch on as the game starts and stay on for every ball */}
       <div className={`floodlights-play ${phase === "loading" ? "" : "on"}`}><Floodlights /></div>
-      <Globe onTap={onTap} onReady={onReady} />
+      <Globe onTap={onTap} onReady={onReady} onPainted={onPainted} />
 
       {/* Top HUD: player on the left, Round / Score boxes on the right */}
       {(inRound || phase === "summary") && (

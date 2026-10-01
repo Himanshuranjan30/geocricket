@@ -4,6 +4,7 @@ const week = "public, max-age=604800, stale-while-revalidate=2592000";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  allowedDevOrigins: ["127.0.0.1"], // QA: a second hostname = a second, independent player in the same browser
   serverExternalPackages: ["@electric-sql/pglite"],
   // Static game assets rarely change: let browsers and the CDN keep them for a week.
   async headers() {

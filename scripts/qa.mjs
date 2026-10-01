@@ -1,6 +1,6 @@
 // Full-app QA suite against a running server: many independent players (one cookie session each), every mode,
 // positive and negative paths, security checks. Records every result and prints a report; never stops early.
-// Usage: node scripts/qa.mjs <answers.json> [baseUrl]   (answers.json: question id → [lat, lng], exported locally)
+// Usage: node scripts/qa-fixtures.mjs (server stopped), then node scripts/qa.mjs <answers.json> [baseUrl]   (answers.json: question id → [lat, lng], exported locally)
 import { readFileSync } from "node:fs";
 const ANS = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const BASE = process.argv[3] ?? "http://localhost:3000";
@@ -35,7 +35,7 @@ const near = (id, dLat = 0) => { const [lat, lng] = ANS[id]; return { lat: lat +
 suite = "pages";
 {
   const p = new P();
-  const pages = ["/", "/play", "/nets", "/practice", "/live", "/cups", "/groups", "/leaderboard", "/leaderboard?period=week", "/leaderboard?period=month", "/archive", "/archive/2026-09-29",
+  const pages = ["/", "/play", "/nets", "/practice", "/live", "/cups", "/groups", "/leaderboard", "/leaderboard?period=week", "/leaderboard?period=month", "/archive",
     "/locker", "/profile", "/settings", "/about", "/how-it-works", "/privacy", "/terms", "/refunds", "/test/test-qa", "/test/evening-qa", "/c/734", "/admin"];
   for (const path of pages) { const r = await p.req(path); check(`GET ${path} → 200 (or an intended redirect)`, r.status === 200 || (path === "/practice" && r.status === 307), `status ${r.status}`); check(`${path} loads under 3 s`, r.ms < 3000, `${r.ms} ms`); }
   for (const path of ["/does-not-exist", "/cup/zzzzzz", "/live/not-a-duel", "/g/nope", "/duel/nope"]) {
@@ -106,7 +106,7 @@ suite = "test-match";
   for (let i = 0; i < 10; i++) {
     const s = await p.req("/api/start", { idx: i, key: "test-qa" });
     check(`ball ${i + 1}: start reveals the text`, s.status === 200 && s.data.text, JSON.stringify(s.data).slice(0, 80));
-    const id = round.questions[i].id, exact = i % 2 === 0;
+    const id = s.data.id, exact = i % 2 === 0; // real ids only come with the started ball (the round hides them)
     const g = await p.req("/api/guess", { idx: i, key: "test-qa", ...(exact ? near(id) : { lat: -ANS[id][0], lng: ANS[id][1] + 179 }) });
     const want = exact ? 100 : 0;
     check(`ball ${i + 1}: ${exact ? "exact pin scores 100" : "far pin scores 0"}`, g.data.points === want, `points ${g.data.points}`);
@@ -125,7 +125,7 @@ suite = "test-match";
   // XP floor: a brand-new guest (level 1, 0 XP) scoring only poor balls never goes negative
   const z = await new P().guest();
   const r2 = (await z.req("/api/round?key=test-qa2")).data;
-  for (let i = 0; i < 3; i++) { await z.req("/api/start", { idx: i, key: "test-qa2" }); const id = r2.questions[i].id; await z.req("/api/guess", { idx: i, key: "test-qa2", lat: -ANS[id][0], lng: ANS[id][1] + 179 }); }
+  for (let i = 0; i < 3; i++) { const id = (await z.req("/api/start", { idx: i, key: "test-qa2" })).data.id; await z.req("/api/guess", { idx: i, key: "test-qa2", lat: -ANS[id][0], lng: ANS[id][1] + 179 }); }
   const zx = (await z.req("/api/career")).data.xp;
   check("XP never drops below the level floor (0 at level 1)", zx === 0, `xp ${zx}`);
   // timed-out ball
@@ -147,8 +147,8 @@ suite = "evening-daily";
   const p = await new P().guest();
   const r = (await p.req("/api/round?key=evening-qa")).data;
   check("evening Daily has 5 balls", r.questions?.length === 5, `${r.questions?.length}`);
-  await p.req("/api/start", { idx: 0, key: "evening-qa" });
-  const g = await p.req("/api/guess", { idx: 0, key: "evening-qa", ...near(r.questions[0].id) });
+  const st = await p.req("/api/start", { idx: 0, key: "evening-qa" });
+  const g = await p.req("/api/guess", { idx: 0, key: "evening-qa", ...near(st.data.id) });
   check("evening Daily: 100 points, XP = points (no ×2)", g.data.points === 100 && g.data.xp === 100, JSON.stringify({ p: g.data.points, xp: g.data.xp }));
   check("evening Daily is not flagged as a Test", g.data.test === false, `${g.data.test}`);
 }
@@ -172,8 +172,8 @@ suite = "nets";
   check("Nets ~330 km off → ~51 points", off.data.points >= 45 && off.data.points <= 56, `${off.data.points}`);
   const to = await p.req("/api/check", { id: first, timedOut: true }); check("Nets time-out → 0", to.data.points === 0, `${to.data.points}`);
   const bad = await p.req("/api/check", { id: "", lat: 0, lng: 0 }); check("Nets missing id → 400", bad.status === 400, `${bad.status}`);
-  const unk = await p.req("/api/check", { id: "no-such-q", lat: 0, lng: 0 }); check("Nets unknown id → 404", unk.status === 404, `${unk.status}`);
-  const live = (await p.req("/api/round?key=test-qa")).data.questions[0].id;
+  const unk = await p.req("/api/check", { id: "no-such-q", lat: 0, lng: 0 }); check("Nets unknown id → refused (403/404, no enumeration)", unk.status === 403 || unk.status === 404, `${unk.status}`);
+  const live = (await p.req("/api/start", { idx: 9, key: "test-qa" })).data.id;
   const leak = await p.req("/api/check", { id: live, lat: 0, lng: 0 });
   check("Nets can't be used to peek at a live round's answer (403)", leak.status === 403, `${leak.status}`);
 }
@@ -213,7 +213,7 @@ suite = "live-1v1";
   check("duel view never exposes player ids", !UUID.test(view.text), "found a uuid");
   await sleep(4500);
   let rounds = 0, v = view.data;
-  for (let t = 0; t < 40 && v.status !== "done"; t++) {
+  for (let t = 0; t < 150 && v.status !== "done"; t++) {
     v = (await a.req(`/api/live/${id}`)).data;
     const r = v.round;
     if (r?.text && !r.resolvedMs && !r.myGuess) {

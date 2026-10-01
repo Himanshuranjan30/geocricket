@@ -128,7 +128,7 @@ function YouCard({ mine, onPick }: { mine: Record<string, Mine> | null | undefin
       <div className="min-w-0 flex-1">
         <div className="text-sm">{r ? <><b>{r.value}</b> <span className="text-muted">pts{r.provisional ? " · provisional" : ""}{r.ranked ? ` · of ${r.of}` : " · not ranked yet"}</span></> : <span className="text-muted">No ranking yet</span>}</div>
         <div className="mt-1.5 flex flex-wrap gap-1">
-          {chip("streak", mine.streak ? `🔥 ${mine.streak.value} days` : null)}
+          {chip("streak", mine.streak ? `🔥 ${mine.streak.value} day${mine.streak.value === 1 ? "" : "s"}` : null)}
           {chip("effort", mine.effort ? `${mine.effort.value.toLocaleString("en-IN")} XP` : null)}
           {chip("accuracy", mine.accuracy ? `${mine.accuracy.value} avg` : null)}
         </div>

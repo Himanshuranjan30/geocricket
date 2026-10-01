@@ -139,3 +139,6 @@ export const MISS_KM = 20015; // half the Earth's circumference: the worst possi
 
 /** Near-perfect total at inhuman speed: hide from other players' leaderboards until reviewed. */
 export const isSuspicious = (total: number, totalMs: number, max = 1000, questions = 5) => total >= 0.95 * max && totalMs < 4000 * questions;
+
+/** "1 ball", "4 balls", "1,203 players" (en-IN digits). */
+export const plural = (n: number, word: string) => `${n.toLocaleString("en-IN")} ${word}${n === 1 ? "" : "s"}`;

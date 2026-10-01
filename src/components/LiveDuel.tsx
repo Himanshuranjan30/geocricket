@@ -120,6 +120,16 @@ export function LiveDuel({ id }: { id: string }) {
   }
 
   const secsLeft = r?.deadlineMs ? Math.max(0, Math.ceil((r.deadlineMs - serverNow) / 1000)) : null;
+  // Same as the Daily: Enter bowls the placed ball, and a placed ball is sent on its own as the clock runs out.
+  const guessRef = useRef(guess);
+  useEffect(() => { guessRef.current = guess; });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Enter" && !e.repeat) void guessRef.current(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const lastCall = phase === "aim" && !!pin && r?.deadlineMs != null && r.deadlineMs - serverNow < 1200;
+  useEffect(() => { if (lastCall) void guessRef.current(); }, [lastCall]);
   const oppGuessedFirst = !!r && !r.myGuess && r.guessed.length > 0;
   const inviteUrl = `${siteUrl()}/live/${id}`;
   const last = v?.log?.[v.log.length - 1];

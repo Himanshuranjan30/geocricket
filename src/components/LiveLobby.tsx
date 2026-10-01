@@ -4,6 +4,7 @@ import { Lightning, UserPlus } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LIVE } from "@/lib/live";
 import type { Profile } from "@/lib/profile";
 import { track } from "./Analytics";
 import { AccountMenu } from "./AccountMenu";
@@ -45,7 +46,7 @@ export function LiveLobby() {
           <p className="mx-auto mt-3 max-w-[40ch] text-[#E4E1FA]">Same question, same moment. The closer ball wins the round and takes health off your rival. First to zero loses.</p>
         </div>
         <ul className="grid grid-cols-3 gap-2 text-center text-xs text-muted">
-          {[["300 HP", "each"], ["10 s", "after first guess"], ["×3", "damage late on"]].map(([a, b]) => (
+          {[[`${LIVE.HP.toLocaleString("en-IN")} HP`, "each"], [`${LIVE.AFTER_FIRST_MS / 1000} s`, "after first guess"], ["×3", "damage late on"]].map(([a, b]) => (
             <li key={a} className="hud-box px-2 py-2.5"><div className="display text-lg text-cream">{a}</div>{b}</li>
           ))}
         </ul>
