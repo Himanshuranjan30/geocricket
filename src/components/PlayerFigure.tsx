@@ -11,12 +11,13 @@ import type { Mood } from "./Toon";
 export function PlayerFigure({ code, className = "", mood = "idle" }: { code: string | null | undefined; className?: string; mood?: Mood }) {
   const legend = legendOf(code);
   const painted = useRigImage(legend ? null : code);
-  const src = legend ? `/legends/${legend.id}/full.webp` : painted;
+  // A legend without its full-body render yet (scripts/legend-full.mts) shows its portrait instead of a broken image.
+  const src = legend ? `/legends/${legend.id}/${legend.full ? "full" : "idle"}.webp` : painted;
   return (
     <div className={`fig fig-render ${className} mood-${mood}`}>
       <div className="fig-shadow" />
       {/* eslint-disable-next-line @next/next/no-img-element -- pre-rendered transparent webp */}
-      {src && <img key={src} src={src} alt="" aria-hidden className="fig-body rise block h-full w-full object-contain" />}
+      {src && <img key={src} src={src} alt="" aria-hidden className={`fig-body rise block h-full w-full object-contain ${legend && !legend.full ? "object-bottom p-[18%] pb-[8%]" : ""}`} />}
     </div>
   );
 }
