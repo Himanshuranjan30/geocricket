@@ -18,7 +18,7 @@ export default async function Image({ params }: { params: Promise<{ score: strin
           ))}
         </div>
         <div style={{ fontSize: 56, fontWeight: 800, color: "#F2B53A", marginTop: 36 }}>Can you beat me?</div>
-        <div style={{ fontSize: 30, color: "#8FA0BF", marginTop: 10 }}>5 cricket moments · tap where it happened</div>
+        <div style={{ fontSize: 30, color: "#8FA0BF", marginTop: 10 }}>Cricket&apos;s greatest moments. Can you pin them all?</div>
       </div>
     ),
     size,

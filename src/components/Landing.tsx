@@ -197,7 +197,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         {pitch && (
           <h1 className="max-w-[92vw] text-center text-[15px] leading-snug text-cream [text-shadow:0_1px_10px_rgba(10,6,40,.9)] lg:text-base">
             <span className="display italic text-[#F5C000]">Lara&apos;s 400. Dhoni&apos;s six. Kapil&apos;s &apos;83.</span>{" "}
-            <span className="whitespace-nowrap">Can you pin where they happened?</span>
+            <span className="whitespace-nowrap">Can you pin them all?</span>
           </h1>
         )}
         {challenge != null && (

@@ -13,7 +13,7 @@ const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(site),
   title: { default: "GeoCricket: the daily cricket geography game (cricket Wordle)", template: "%s · GeoCricket" },
-  description: "Lara's 400. Dhoni's six. Kapil's '83. Can you pin where they happened? The free daily cricket geography game: 4 games a day, live 1v1 duels, leagues and knockout cups.",
+  description: "Cricket's greatest moments. Can you pin them all? Spin the globe in the free daily cricket geography game, then take on the world in live 1v1 duels, leagues and knockout cups.",
   applicationName: "GeoCricket",
   alternates: { canonical: "/" },
   openGraph: { siteName: "GeoCricket", type: "website", locale: "en_IN", url: "/" },
@@ -39,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Site-wide structured data: the game (free web app) and the brand. */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([
           { "@context": "https://schema.org", "@type": "WebApplication", name: "GeoCricket", url: site, applicationCategory: "GameApplication", operatingSystem: "Any (web browser)",
-            description: "A free daily cricket geography game: guess where famous cricket moments happened on a 3D globe.", inLanguage: "en", image: `${site}/opengraph-image`, offers: { "@type": "Offer", price: "0", priceCurrency: "INR" } },
+            description: "Cricket's greatest moments. Can you pin them all? A free cricket geography game on a 3D globe: daily games, live duels and knockout cups.", inLanguage: "en", image: `${site}/opengraph-image`, offers: { "@type": "Offer", price: "0", priceCurrency: "INR" } },
           { "@context": "https://schema.org", "@type": "Organization", name: "GeoCricket", url: site, logo: `${site}/logo-512.png`, image: `${site}/logo-512.png` },
           { "@context": "https://schema.org", "@type": "WebSite", name: "GeoCricket", alternateName: ["Geo Cricket", "GeoCricket game"], url: `${site}/` }, // Google's site name
         ]).replace(/</g, "\\u003c") }} />

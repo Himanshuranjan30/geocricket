@@ -32,7 +32,7 @@ export default async function Image() {
             <span>GEO</span><span style={{ color: "#FF5A6E" }}>CRICKET</span>
           </div>
           <div style={{ fontSize: 40, fontWeight: 700, color: "#F5C000", marginTop: 26 }}>Lara&apos;s 400. Dhoni&apos;s six. Kapil&apos;s &apos;83.</div>
-          <div style={{ fontSize: 40, fontWeight: 500, color: "#E4E1FA", marginTop: 6 }}>Can you pin where they happened?</div>
+          <div style={{ fontSize: 40, fontWeight: 500, color: "#E4E1FA", marginTop: 6 }}>Can you pin them all?</div>
           <div style={{ fontSize: 26, fontWeight: 500, color: "#40DC82", marginTop: 30 }}>The free daily cricket geography game</div>
         </div>
       </div>
