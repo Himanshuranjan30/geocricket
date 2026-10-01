@@ -1,0 +1,9 @@
+content/cricsheet
+content/legend-refs
+.pglite
+public/rig2
+.env*
+!.env.example
+.claude
+.vitest
+*.tsbuildinfo
