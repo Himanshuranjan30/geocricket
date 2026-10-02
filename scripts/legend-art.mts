@@ -40,13 +40,15 @@ async function make(l: Legend) {
 
   const svg = renderToStaticMarkup(createElement(Toon, { legend: { ...l, art: false }, size: 512 })).replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
   const format = { inlineData: { mimeType: "image/png", data: (await sharp(Buffer.from(svg)).png().toBuffer()).toString("base64") } };
-  const prompt = `Image 1 is a photo of ${l.name}. Image 2 is our avatar FORMAT reference (frame, palette, outline weight only; ignore its face).
-Draw ${l.name} from image 1, ${kit}. Calm, confident, friendly expression. ${STYLE}`;
+  const who = process.env.LIKENESS ? "the person" : l.name; // naming a real person next to a likeness ask gets refused
+  const prompt = `Image 1 is a photo of ${who}. Image 2 is our avatar FORMAT reference (frame, palette, outline weight only; ignore its face).
+Draw ${who} from image 1 as a cartoon, ${kit}. Calm, confident, friendly expression. ${STYLE}${process.env.LIKENESS ? `
+Likeness is the priority: keep the face from image 1: face shape, eye shape and spacing, nose, jawline, eyebrows, hairline, hairstyle, facial hair and skin tone, so the cartoon clearly resembles the photo. No cap or headwear unless the person always wears one.` : ""}`;
   // A few candidates for the look you approve; the first is used unless you pick another (pnpm legend-art <id> --pick N).
   const pick = Number(process.argv.find((a) => a.startsWith("--pick="))?.slice(7) ?? 0);
   const n = Number(process.env.CANDIDATES ?? 1);
-  let idle: Buffer | undefined;
-  for (let i = 0; i < n; i++) {
+  let idle: Buffer | undefined = process.env.KEEP_IDLE ? readFileSync(`${dir}/idle.webp`) : undefined; // KEEP_IDLE=1: keep the approved idle, redo only the moods
+  for (let i = 0; i < n && !process.env.KEEP_IDLE; i++) {
     const img = await image([photo, format, { text: prompt }]);
     await save(img, `${dir}/candidate-${i}.webp`);
     if (i === pick) idle = img;
