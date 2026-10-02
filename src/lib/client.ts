@@ -41,10 +41,13 @@ function tone(freq: number, dur: number, type: OscillatorType = "sine", vol = 0.
 }
 
 /** Game sound effects (synthesized, nothing to download). Silent when muted or before the first user gesture. */
-export function sfx(name: "tick" | "go" | "lock" | "hit" | "hurt" | "win" | "lose" | "draw") {
+export function sfx(name: "tick" | "go" | "lock" | "hit" | "hurt" | "win" | "lose" | "draw" | "click" | "whoosh" | "thud") {
   if (!soundOn()) return;
   try {
-    if (name === "tick") tone(880, 0.08, "square", 0.08);
+    if (name === "click") { tone(1250, 0.04, "triangle", 0.12, 0, 900); tone(2100, 0.025, "sine", 0.05, 0.012); }
+    else if (name === "whoosh") whoosh();
+    else if (name === "thud") { tone(150, 0.22, "sine", 0.35, 0, 60); tone(90, 0.18, "triangle", 0.15, 0.02, 50); }
+    else if (name === "tick") tone(880, 0.08, "square", 0.08);
     else if (name === "go") { tone(660, 0.12, "square", 0.12); tone(1320, 0.25, "square", 0.12, 0.12); }
     else if (name === "lock") { tone(520, 0.06, "triangle", 0.2); tone(780, 0.1, "triangle", 0.2, 0.06); }
     else if (name === "hit") { crack(); tone(220, 0.35, "sawtooth", 0.18, 0, 70); tone(880, 0.15, "square", 0.1, 0.05, 1760); }
@@ -53,6 +56,25 @@ export function sfx(name: "tick" | "go" | "lock" | "hit" | "hurt" | "win" | "los
     else if (name === "lose") [392, 330, 262, 196].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.2, "triangle", 0.2, i * 0.18));
     else tone(440, 0.25, "triangle", 0.15);
   } catch {}
+}
+
+/** A ball through the air: noise swept up and back through a bandpass. */
+function whoosh() {
+  const a = ctx(), len = a.sampleRate * 0.7, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin((Math.PI * i) / len) ** 2;
+  const src = a.createBufferSource(), bp = a.createBiquadFilter(), g = a.createGain(), t = a.currentTime;
+  bp.type = "bandpass"; bp.Q.value = 2.5; bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(2200, t + 0.35); bp.frequency.exponentialRampToValueAtTime(700, t + 0.7);
+  g.gain.value = 0.5; src.buffer = buf; src.connect(bp).connect(g).connect(a.destination); src.start();
+}
+
+/** One soft click for every button, link and toggle in the app (a single listener, installed once). */
+export function installClickSound() {
+  const on = (e: MouseEvent) => {
+    const t = (e.target as Element | null)?.closest?.("button, a[href], [role=button], [role=tab], [role=option], summary, select, input[type=checkbox], input[type=radio]");
+    if (t && !t.matches(":disabled, [aria-disabled=true]")) sfx("click");
+  };
+  addEventListener("click", on, true);
+  return () => removeEventListener("click", on, true);
 }
 
 /** Short synthesized bat-crack. Only plays after a user gesture and when sound is on. */

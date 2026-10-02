@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect } from "react";
+import { installClickSound } from "@/lib/client";
 import { useMe } from "@/lib/useMe";
 
 // Google Analytics 4. Page views (including client-side navigations), scrolls and outbound clicks come from the
@@ -30,6 +31,7 @@ export function track(event: string, props?: Record<string, unknown>) {
 
 export function Analytics() {
   const [me] = useMe();
+  useEffect(installClickSound, []);
   // One player = one GA user across reloads and devices: a keyed hash of the player id (never the id itself).
   useEffect(() => {
     if (!me?.aid) return;

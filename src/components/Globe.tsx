@@ -6,15 +6,19 @@ import { useEffect, useRef } from "react";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
 import { distanceKm, greatCircle } from "@/lib/game";
+import { sfx } from "@/lib/client";
 
 export type LngLat = [number, number];
 export type GlobeApi = {
   reset: () => Promise<void>;
   setPin: (p: LngLat | null) => void;
-  reveal: (pin: LngLat, answer: LngLat, opts: { perfect: boolean }) => Promise<void>;
+  /** The ball flies from the guess to the wicket; resolves when it lands, then the camera settles on the answer. */
+  reveal: (pin: LngLat, answer: LngLat, opts: { points: number }) => Promise<void>;
   /** Time ran out with no ball placed: fly to the answer and show the stumps only. */
   showAnswer: (answer: LngLat) => Promise<void>;
   zoom: (delta: number) => void;
+  /** Fit the globe between the question banner (top px) and the guess dock (bottom px) so nothing covers it. */
+  inset: (top: number, bottom: number) => void;
   spin: (on: boolean, centred?: boolean) => void; // centred: dashboard globe in its own box, no landing offsets
   /** Place names are off by default (the landing globe stays clean and loads faster); games switch them on. */
   labels: (on: boolean) => void;
@@ -147,6 +151,8 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
     const ball = new Marker({ element: el("pm-ball pm-guess"), anchor: "bottom" });
     const stumps = new Marker({ element: el("pm-stumps", "<i></i><i></i><i></i><b></b><b></b>"), anchor: "bottom" });
     let spinning = false, raf = 0;
+    let insets = { top: 120, bottom: 140 }; // screen space the game UI covers, set by inset()
+    const fitZoom = () => Math.max(0.2, Math.log2((Math.min(container.clientWidth * 0.94, container.clientHeight - insets.top - insets.bottom) * Math.PI) / 512));
 
     fetch("/world.topo.json").then((r) => r.json()).then((topo: Topology) => {
       const geo = feature(topo, topo.objects.ind10m);
@@ -192,7 +198,7 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
         seq++;
         ball.remove(); stumps.remove(); setArc([]); clearExtra();
         inner(stumps).classList.remove("fly", "shake");
-        map.easeTo({ center: START, zoom: startZoom(container), padding: { top: 120, bottom: 140, left: 0, right: 0 }, duration: dur(700) });
+        map.easeTo({ center: START, zoom: fitZoom(), padding: { ...insets, left: 0, right: 0 }, duration: dur(700) });
         await new Promise((r) => setTimeout(r, dur(700) + 20));
       },
       labels(on) {
@@ -205,6 +211,11 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
         const e = inner(ball); e.classList.remove("drop"); void e.offsetWidth; e.classList.add("drop");
       },
       zoom(delta) { map.easeTo({ zoom: map.getZoom() + delta, duration: 250 }); },
+      inset(top, bottom) {
+        if (top === insets.top && bottom === insets.bottom) return;
+        insets = { top, bottom };
+        map.easeTo({ zoom: fitZoom(), padding: { ...insets, left: 0, right: 0 }, duration: dur(450) });
+      },
       spin(on, centred) {
         if (on && centred) map.jumpTo({ padding: { top: 0, bottom: 0, left: 0, right: 0 }, zoom: startZoom(container) });
         else if (on) { // Landing: push the globe up so it sits above the title and Play button.
@@ -216,34 +227,44 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
         }
         spinning = on && !reduced(); cancelAnimationFrame(raf); if (spinning) raf = requestAnimationFrame(tick);
       },
-      async reveal(pin, answer, { perfect }) {
+      async reveal(pin, answer, { points }) {
         const my = ++seq;
-        stumps.setLngLat(answer).addTo(map); // the wicket lands the moment the answer is known; the camera follows
-        const path = greatCircle(pin, answer);
-        const lngs = path.map((p) => p[0]), lats = path.map((p) => p[1]);
-        const bottom = Math.round(container.clientHeight * 0.42);
-        map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
-          padding: { top: 170, bottom, left: 48, right: 48 }, maxZoom: 7, duration: dur(900),
-        });
-        await settle(dur(900) + 200);
+        stumps.remove(); inner(stumps).classList.remove("fly", "shake");
+        const path = greatCircle(pin, answer), bottom = Math.round(container.clientHeight * 0.42);
+        // 1. The globe turns to take in both the ball and the wicket.
+        frame([pin, answer], { top: insets.top, bottom, left: 48, right: 48 }, 800, 7);
+        await settle(dur(800) + 100);
         if (my !== seq) return;
-        const t0 = performance.now(), arcMs = dur(600);
+        // 2. The ball flies along the arc with a whoosh, the seam trail growing behind it.
+        sfx("whoosh");
+        const flyer = new Marker({ element: el("pm-ball pm-flyer"), anchor: "bottom" }).setLngLat(pin).addTo(map);
+        const t0 = performance.now(), flyMs = dur(Math.min(1100, 600 + distanceKm(pin, answer) / 12));
         await new Promise<void>((done) => {
           const step = (now: number) => {
             if (my !== seq) return done();
-            const t = arcMs ? Math.min(1, (now - t0) / arcMs) : 1;
-            setArc(path.slice(0, Math.max(2, Math.ceil(t * path.length))));
+            const t = flyMs ? Math.min(1, (now - t0) / flyMs) : 1, e = t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) ** 2 / 2;
+            const k = Math.round(e * (path.length - 1));
+            setArc(path.slice(0, Math.max(2, k + 1))); flyer.setLngLat(path[k]);
             if (t < 1) requestAnimationFrame(step); else done();
           };
           requestAnimationFrame(step);
         });
-        if (my === seq && perfect) requestAnimationFrame(() => inner(stumps).classList.add("fly", "shake"));
+        flyer.remove();
+        if (my !== seq) return;
+        // 3. It hits the wicket: bails fly on a perfect ball, a chime when close, a thud when wide.
+        stumps.setLngLat(answer).addTo(map);
+        sfx(points === 100 ? "hit" : points >= 60 ? "lock" : "thud");
+        if (points === 100) requestAnimationFrame(() => inner(stumps).classList.add("fly", "shake"));
+        // 4. The camera settles on the right spot (not awaited: the result shows as the ball lands).
+        setTimeout(() => {
+          if (my === seq) map.flyTo({ center: answer, zoom: Math.min(7, Math.max(map.getZoom(), 4.5)), padding: { top: insets.top, bottom, left: 0, right: 0 }, duration: dur(1200) });
+        }, dur(300));
       },
       async showAnswer(answer) {
         ++seq;
         ball.remove(); setArc([]); clearExtra();
         stumps.setLngLat(answer).addTo(map);
-        map.flyTo({ center: answer, zoom: 4, padding: { top: 170, bottom: Math.round(container.clientHeight * 0.42), left: 0, right: 0 }, duration: dur(1100) });
+        map.flyTo({ center: answer, zoom: 4, padding: { top: Math.max(170, insets.top), bottom: Math.round(container.clientHeight * 0.42), left: 0, right: 0 }, duration: dur(1100) });
         await settle(dur(1100) + 200);
       },
       summary(pairs, padding) {
@@ -265,15 +286,15 @@ export default function Globe({ onTap, onReady, onPainted }: { onTap: (p: LngLat
         frame(points, padding);
       },
     };
-    function frame(pts: LngLat[], padding: { top: number; bottom: number; left: number; right: number }) {
+    function frame(pts: LngLat[], padding: { top: number; bottom: number; left: number; right: number }, ms = 1400, maxZoom = 5) {
         if (!pts.length) return;
         // fitBounds is Mercator-based and misframes a globe; centre on the spherical mean and zoom by spread instead.
         const r = Math.PI / 180;
         const v = pts.reduce((a, [lng, lat]) => [a[0] + Math.cos(lat * r) * Math.cos(lng * r), a[1] + Math.cos(lat * r) * Math.sin(lng * r), a[2] + Math.sin(lat * r)], [0, 0, 0]);
         const center: LngLat = [Math.atan2(v[1], v[0]) / r, Math.atan2(v[2], Math.hypot(v[0], v[1])) / r];
         const spreadDeg = Math.max(...pts.map((p) => distanceKm(center, p) / 111.2));
-        const zoom = Math.min(5, startZoom(container) + Math.max(0, Math.log2(50 / Math.max(spreadDeg, 1))));
-        map.easeTo({ center, zoom, padding, duration: dur(1400) });
+        const zoom = Math.min(maxZoom, startZoom(container) + Math.max(0, Math.log2(50 / Math.max(spreadDeg, 1))));
+        map.easeTo({ center, zoom, padding, duration: dur(ms) });
     }
     map.once("load", () => {
       // Start the credit collapsed to its (i) button; it opens on tap (licence needs it available, not blocking the globe).

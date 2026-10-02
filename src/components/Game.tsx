@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AUTO_NEXT_SECONDS, QUESTION_SECONDS, tierOf } from "@/lib/game";
 import { naturalBreak } from "@/lib/ads";
-import { buzz, crack, soundOn, store, totalOf, type Result } from "@/lib/client";
+import { buzz, crack, sfx, soundOn, store, totalOf, type Result } from "@/lib/client";
 import { type Profile } from "@/lib/profile";
 import { avatarCode } from "@/lib/avatar";
 import { encodeLook, randomLook } from "@/lib/rig";
@@ -54,6 +54,7 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
   // Opened from a friend's shared result (/c/<score> → /play?c=<score>): show the score to beat.
   const [beat] = useState<number | null>(() => { if (typeof window === "undefined") return null; const c = Number(new URLSearchParams(window.location.search).get("c")); return Number.isFinite(c) && c > 0 ? Math.min(1000, c) : null; });
   const api = useRef<GlobeApi | null>(null);
+  const bannerRef = useRef<HTMLDivElement>(null), dockRef = useRef<HTMLDivElement>(null);
   const [globeReady, setGlobeReady] = useState(false);
   // The shot clock must not start before the globe is on screen (slow phones / first load): startAt waits for the first
   // paint, capped so a stuck tile server can't block the game.
@@ -159,12 +160,12 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
     const answer: LngLat = [data.answer.lng, data.answer.lat];
     const r: Result = { xp: data.xp, test: data.test, rival: data.rival, points: data.points, km: data.km, mult: q.mult, guess: pin ?? answer, answer: data.answer };
     setTimedOut(miss || !!data.late);
-    // The result shows even if the globe animation stalls (tab in background, map still loading).
-    // The wicket drops and the flight starts at once; the result bar follows within 0.7 s while the camera finishes, so
-    // feedback is instant and nothing from this ball can spill into the next one (Globe cancels stale reveals).
-    const anim = pin ? api.current?.reveal(pin, answer, { perfect: r.points === 100 }) : api.current?.showAnswer(answer);
-    await Promise.race([anim, new Promise((ok) => setTimeout(ok, 700))]);
-    crack(); if (r.points === 100) buzz([30, 40, 70]);
+    // The globe turns to the ball, the ball flies to the wicket (Globe plays the sounds), and the result bar comes up as
+    // it lands. Capped, so a stalled animation (background tab, map still loading) never holds the result back; Globe
+    // cancels stale reveals, so nothing from this ball can spill into the next one.
+    const anim = pin ? api.current?.reveal(pin, answer, { points: r.points }) : api.current?.showAnswer(answer).then(() => sfx("thud"));
+    await Promise.race([anim, new Promise((ok) => setTimeout(ok, pin ? 2400 : 900))]);
+    if (r.points === 100) buzz([30, 40, 70]);
     setAutoNext(AUTO_NEXT_SECONDS);
     setResults((rs) => [...rs, r]);
     track("question_answered", { mode, idx, points: r.points, km: Math.round(r.km), xp: r.xp ?? 0 });
@@ -210,9 +211,17 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
     if (phaseRef.current !== "reveal") return; // a click and the auto-advance can race
     phaseRef.current = "splash";
     if (idx + 1 < round.questions.length) startAt(idx + 1);
-    // The scorecard is a natural break: maybe an interstitial first (capped, never the first game of the day; see lib/ads).
-    else { track("round_completed", { mode, total: totalOf(results) }); void naturalBreak(mode === "practice" ? "nets_done" : "round_done").then(() => setPhase("summary")); }
+    // The scorecard opens at once; a capped interstitial may then show over it (never the first game of the day; see lib/ads).
+    else { track("round_completed", { mode, total: totalOf(results) }); setPhase("summary"); void naturalBreak(mode === "practice" ? "nets_done" : "round_done"); }
   }
+
+  // Fit the globe into the space between the question banner and the guess dock, so the question never covers it.
+  const qText = phase === "aim" ? round?.questions[idx]?.text : null;
+  useEffect(() => {
+    if (!qText || !globeReady) return;
+    const b = bannerRef.current, d = dockRef.current;
+    if (b && d) api.current?.inset(b.offsetTop + b.offsetHeight + 8, window.innerHeight - d.offsetTop + 8);
+  }, [qText, globeReady]);
 
   // Summary: draw every flight path; leave room for the scorecard panel (right on desktop, bottom on phones).
   useEffect(() => {
@@ -282,7 +291,7 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
 
       {/* Question banner */}
       {(phase === "aim" || phase === "reveal") && q?.text && (
-        <div className="tv-ui pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+68px)] mx-auto max-w-[720px] px-3">
+        <div ref={bannerRef} className="tv-ui pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+68px)] mx-auto max-w-[720px] px-3">
           <div className="glass pointer-events-auto overflow-hidden rounded-3xl rise">
             <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-ball to-[#B0203A] px-4 py-1.5">
               <span className="display flex items-center gap-2 text-xs tracking-[.14em]"><span className="live-dot" aria-hidden /><Microphone weight="fill" size={14} />Commentary · Ball {idx + 1}</span>
@@ -323,7 +332,7 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
 
       {/* Guess dock. No ball yet: an instruction pill (a disabled button reads as broken). Ball placed: GUESS springs in. */}
       {phase === "aim" && (
-        <div className="tv-ui pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center gap-2.5 px-3 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:justify-end sm:px-5">
+        <div ref={dockRef} className="tv-ui pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center gap-2.5 px-3 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:justify-end sm:px-5">
           <div className="pointer-events-auto flex flex-col gap-1.5">
             <button aria-label="Zoom in" onClick={() => api.current?.zoom(0.9)} className="btn-ghost grid h-12 w-12 place-items-center backdrop-blur"><Plus weight="bold" size={20} /></button>
             <button aria-label="Zoom out" onClick={() => api.current?.zoom(-0.9)} className="btn-ghost grid h-12 w-12 place-items-center backdrop-blur"><Minus weight="bold" size={20} /></button>
