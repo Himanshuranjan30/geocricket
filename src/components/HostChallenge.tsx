@@ -59,6 +59,18 @@ export function HostChallenge() {
         </section>
       )}
 
+      {!!data?.mine.length && (
+        <section aria-label="Your challenges" className="flex flex-col gap-2">
+          <h2 className="display text-xl">Your challenges</h2>
+          {data.mine.map((c) => (
+            <Link key={c.slug} href={`/mystery/c/${c.slug}`} className={`glass flex items-center justify-between gap-3 rounded-2xl p-3 !text-cream !no-underline ${c.active ? "" : "opacity-50"}`}>
+              <span className="min-w-0"><b className="block truncate">{c.title}</b><span className="block truncate text-xs text-muted">{c.players.join(", ")}</span></span>
+              <span className="shrink-0 text-sm text-muted">{c.active ? `${c.plays} played` : "Switched off"}</span>
+            </Link>
+          ))}
+        </section>
+      )}
+
       <section aria-label="Host a challenge" className="glass flex flex-col gap-4 rounded-3xl p-4">
         <div>
           <h2 className="display text-2xl">Host a challenge</h2>
@@ -71,18 +83,6 @@ export function HostChallenge() {
         {error && <p role="alert" className="text-sm text-[#FF8F9C]">{error}</p>}
         <button disabled={!ready || busy} onClick={() => create()} className="btn-primary py-3.5 text-xl disabled:opacity-50">{busy ? "Creating…" : "Create challenge"}</button>
       </section>
-
-      {!!data?.mine.length && (
-        <section aria-label="Your challenges" className="flex flex-col gap-2">
-          <h2 className="display text-xl">Your challenges</h2>
-          {data.mine.map((c) => (
-            <Link key={c.slug} href={`/mystery/c/${c.slug}`} className={`glass flex items-center justify-between gap-3 rounded-2xl p-3 !text-cream !no-underline ${c.active ? "" : "opacity-50"}`}>
-              <span className="min-w-0"><b className="block truncate">{c.title}</b><span className="block truncate text-xs text-muted">{c.players.join(", ")}</span></span>
-              <span className="shrink-0 text-sm text-muted">{c.active ? `${c.plays} played` : "Switched off"}</span>
-            </Link>
-          ))}
-        </section>
-      )}
 
       {setup && me && (
         <ProfileSetup initial={null} suggestedCountry={me.suggestedCountry} user={me.user} googleEnabled={me.googleEnabled} intro="Your name goes on the challenge as its host"
