@@ -72,7 +72,13 @@ let clickBuf: Promise<AudioBuffer | null> | null = null;
 function tack() {
   const a = ctx();
   clickBuf ??= fetch("/sfx/click.mp3").then((r) => r.arrayBuffer()).then((b) => a.decodeAudioData(b)).catch(() => null);
-  void clickBuf.then((buf) => { if (!buf) return; const src = a.createBufferSource(); src.buffer = buf; src.connect(a.destination); src.start(); });
+  void clickBuf.then((buf) => {
+    if (!buf) return;
+    // Lighter: about half volume, low thump filtered out.
+    const src = a.createBufferSource(), hp = a.createBiquadFilter(), g = a.createGain();
+    hp.type = "highpass"; hp.frequency.value = 700; g.gain.value = 0.45;
+    src.buffer = buf; src.connect(hp).connect(g).connect(a.destination); src.start();
+  });
 }
 
 /** One tack for every button, link and toggle in the app (a single listener, installed once). */
