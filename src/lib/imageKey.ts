@@ -6,7 +6,12 @@ import sharp from "sharp";
 export async function keyed(buf: Buffer, trim = true) {
   const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width: w, height: h } = info;
-  const bg = [data[0], data[1], data[2]];
+  // The background colour: the most common colour along the border (not just the corner pixel: a generated image can
+  // have a thin stray strip on one edge).
+  const tally = new Map<string, { n: number; c: number[] }>();
+  const sample = (x: number, y: number) => { const p = (y * w + x) * 4, c = [data[p], data[p + 1], data[p + 2]], key = c.map((v) => v >> 4).join(); const t = tally.get(key) ?? { n: 0, c }; t.n++; tally.set(key, t); };
+  for (let i = 0; i < 64; i++) { const x = Math.floor((i / 64) * (w - 1)), y = Math.floor((i / 64) * (h - 1)); sample(x, 0); sample(x, h - 1); sample(0, y); sample(w - 1, y); }
+  const bg = [...tally.values()].sort((a, b) => b.n - a.n)[0].c;
   const dist = (p: number) => Math.hypot(data[p] - bg[0], data[p + 1] - bg[1], data[p + 2] - bg[2]);
   const seen = new Uint8Array(w * h);
   const stack: number[] = [];
