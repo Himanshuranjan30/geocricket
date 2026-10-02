@@ -50,7 +50,7 @@ export function SaveSpot({ title, onSaved }: { title?: string; onSaved: () => vo
   return (
     <section className="flex flex-col gap-2 rounded-2xl border-2 border-dashed border-[#F5C000]/50 bg-[#F5C000]/10 p-3 text-center">
       <p className="display text-lg">{title ? `Save your spot on ${title}` : "Don't lose today's score"}</p>
-      <p className="text-xs text-[#E4E1FA]">{title ? "Right now you're listed as Guest." : "Guests aren't on the leaderboards."} Sign in free and it moves to your account{title ? " under your name" : ", with your streak and XP"}.</p>
+      <p className="text-xs text-[#E4E1FA]">{title && unnamed ? "Right now you're listed as Guest. " : !title ? "Guests aren't on the leaderboards. " : ""}Sign in free so it&apos;s saved to your account{title ? " on any device" : ", with your streak and XP"}.</p>
       <div className="flex flex-wrap justify-center gap-2">
         {me.googleEnabled && <button onClick={() => signInWithGoogle()} className="btn-primary flex items-center gap-2 px-5 py-2.5"><GoogleLogo weight="bold" size={18} />Save with Google</button>}
         {unnamed && <button onClick={() => setNaming(true)} className="btn-ghost px-4 py-2.5 text-sm font-semibold">Just add my name</button>}
