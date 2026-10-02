@@ -222,7 +222,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         )}
         {/* Social proof, always a true number: who's playing this minute, else today's players once there are a few (an
             empty room reads worse than no counter). */}
-        {pulse && (pulse.online > 0 || pulse.today >= 5) && (
+        {pulse && (pulse.online > 0 || pulse.today > 0) && (
           <p className="flex items-center gap-2 text-sm text-muted">
             <span className="flex -space-x-2">{pulse.faces.map((f, i) => <Avatar key={i} code={f} size={24} className="ring-2 ring-[var(--night)]" />)}</span>
             {pulse.online > 0

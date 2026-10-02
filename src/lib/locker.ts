@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { levelOf } from "./level";
 import { LEGEND_BY_ID, LEGENDS } from "./legends";
@@ -35,9 +35,12 @@ export async function canWear(pid: string, id: string) {
 
 /** Every legend with this player's state, for the locker. */
 export async function lockerFor(pid: string | null) {
-  const [have, level] = pid ? await Promise.all([ownedItems(pid), playerLevel(pid)]) : [new Set<string>(), 1];
+  const db = await getDb();
+  const [have, level, paid] = pid ? await Promise.all([ownedItems(pid), playerLevel(pid),
+    db.select({ id: owned.itemId }).from(owned).where(and(eq(owned.playerId, pid), inArray(owned.via, ["purchase", "reward"])))]) : [new Set<string>(), 1, []];
+  const bought = new Set(paid.map((r) => r.id)); // bought or won: what the home-screen switcher offers
   return {
     level,
-    legends: LEGENDS.map((l) => ({ ...l, owned: have.has(`legend:${l.id}`) || level >= l.level })),
+    legends: LEGENDS.map((l) => ({ ...l, owned: have.has(`legend:${l.id}`) || level >= l.level, bought: bought.has(`legend:${l.id}`) })),
   };
 }

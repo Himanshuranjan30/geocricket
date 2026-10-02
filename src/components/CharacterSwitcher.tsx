@@ -8,10 +8,11 @@ import { publishMe, useMe } from "@/lib/useMe";
 import { track } from "./Analytics";
 import { Avatar } from "./Avatar";
 
-type LockerRow = { id: string; name: string; owned: boolean; full?: boolean };
+type LockerRow = { id: string; name: string; owned: boolean; bought?: boolean; full?: boolean };
 
 /**
- * One-tap switch between your own character and every legend you own. Optimistic: the new character shows at once
+ * One-tap switch between your own character, the legends you bought, and whatever you're wearing now (level unlocks live
+ * in the Locker, not here). Optimistic: the new character shows at once
  * (full-body art is preloaded), the save happens in the background and rolls back if it fails.
  */
 export function CharacterSwitcher({ compact = false, label }: { compact?: boolean; label?: string }) {
@@ -19,15 +20,17 @@ export function CharacterSwitcher({ compact = false, label }: { compact?: boolea
   const [owned, setOwned] = useState<LockerRow[]>([]);
   useEffect(() => {
     void fetch("/api/locker", { cache: "no-store" }).then((r) => r.json()).then((d: { legends: LockerRow[] }) => {
-      const mine = d.legends.filter((l) => l.owned);
+      const mine = d.legends.filter((l) => l.bought);
       setOwned(mine);
       for (const l of mine) if (l.full) { const i = new Image(); i.src = `/legends/${l.id}/full.webp`; } // instant swap on the globe
     }, () => {});
   }, [me?.user]);
   if (!me?.profile) return null;
   const current = me.profile.avatar;
-  const options = [...(me.customAvatar ? [{ code: me.customAvatar, label: "My player" }] : []), ...owned.map((l) => ({ code: `legend:${l.id}`, label: l.name }))];
-  if (options.length < 2 && compact) return null;
+  const wearing = legendOf(current);
+  const options = [...(me.customAvatar ? [{ code: me.customAvatar, label: "My player" }] : []), ...owned.map((l) => ({ code: `legend:${l.id}`, label: l.name })),
+    ...(wearing && !owned.some((l) => l.id === wearing.id) ? [{ code: current, label: wearing.name }] : [])];
+  if (options.length < 2) return null; // nothing to switch between
 
   async function pick(code: string) {
     if (!me?.profile || code === current) return;

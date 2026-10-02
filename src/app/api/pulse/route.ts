@@ -8,6 +8,8 @@ import { dayStartMs, istDate } from "@/lib/game";
 export const dynamic = "force-dynamic";
 
 const ONLINE_MS = 10 * 60_000;
+// db.execute returns { rows } on PGlite and Neon's HTTP driver alike; numbers can arrive as strings.
+const rowsOf = (r: unknown) => ((r as { rows?: Record<string, unknown>[] }).rows ?? (r as Record<string, unknown>[])).map((x) => Object.fromEntries(Object.entries(x).map(([k, v]) => [k, Number(v)]))) as { n: number; today: number }[];
 
 // Home-screen pulse: players active in the last 10 minutes and the latest finished live duel. No player ids leave here.
 // Edge-cached for 20 s (same for everyone), so the cup ticks and daily fallback below run on cache misses: every ~20 s at most.
@@ -21,8 +23,9 @@ export async function GET() {
   const { seen, players, duels, duelPlayers } = schema;
   const since = Date.now() - ONLINE_MS;
   const [[{ n }], [{ today }], recentIds, [last]] = await Promise.all([
-    db.select({ n: sql<number>`count(distinct ${seen.playerId})::int` }).from(seen).where(gt(seen.atMs, since)),
-    db.select({ today: sql<number>`count(distinct ${seen.playerId})::int` }).from(seen).where(gt(seen.atMs, dayStartMs(istDate()))),
+    // Anyone playing anything: pin-game balls (seen), Mystery Cricketer and challenge guesses, Name Race buzzes.
+    db.execute(sql`select count(distinct p)::int as n from (select player_id p from seen where at_ms > ${since} union select player_id from who_guesses where at_ms > ${since} union select player_id from who_buzzes where at_ms > ${since}) a`).then(rowsOf),
+    db.execute(sql`select count(distinct p)::int as today from (select player_id p from seen where at_ms > ${dayStartMs(istDate())} union select player_id from who_guesses where at_ms > ${dayStartMs(istDate())} union select player_id from who_buzzes where at_ms > ${dayStartMs(istDate())}) a`).then(rowsOf),
     db.selectDistinct({ id: seen.playerId, at: seen.atMs }).from(seen).where(gt(seen.atMs, since)).orderBy(desc(seen.atMs)).limit(12),
     db.select({ id: duels.id, state: duels.state }).from(duels).where(and(eq(duels.kind, "live"), eq(duels.status, "done"))).orderBy(desc(duels.createdAt)).limit(1),
   ]);
