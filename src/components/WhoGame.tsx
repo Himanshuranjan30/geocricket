@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Fire, House, ShareNetwork, SkipForward, Sword, Trophy, WhatsappLogo } from "@phosphor-icons/react";
+import { ArrowRight, Fire, House, ShareNetwork, SkipForward, Sword, Trophy, WhatsappLogo, Crown } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -312,6 +312,9 @@ export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; s
                 <p className="display mt-1 text-lg">{view.total > rival.total ? `You win by ${view.total - rival.total}` : view.total < rival.total ? `${rivalName} wins by ${rival.total - view.total}` : "Dead heat"}</p>
               </div>
             )}
+            <Link href="/mystery/host" onClick={() => track("host_cta", { from: ch ? "challenge" : "daily" })} className="btn-ghost flex items-center justify-center gap-2 py-3 font-semibold !text-cream !no-underline">
+              <Crown weight="fill" className="text-[#F5C000]" />{ch ? "Host your own challenge" : "Host a challenge for your friends"}
+            </Link>
             <Link href="/mystery/duel" onClick={() => track("who_duel_cta", { from: "summary" })} className="btn-ghost flex items-center justify-center gap-2 py-3 font-semibold !text-cream !no-underline">
               <Sword weight="fill" className="text-[#F5C000]" />{rival && !ch ? `Race ${rivalName} live` : "1v1 Name Race"}<span className="text-sm font-normal text-muted">· first to name him wins</span>
             </Link>

@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import raw from "@/content/who.json";
@@ -161,4 +161,90 @@ export async function claimHost(slug: string, key: string, pid: string) {
     .where(and(eq(schema.whoChallenges.slug, slug), eq(schema.whoChallenges.hostKey, key),
       sql`(${schema.whoChallenges.hostPlayerId} is null or not exists (select 1 from who_results r where r.player_id = ${schema.whoChallenges.hostPlayerId} and r.date = 'c:' || ${schema.whoChallenges.slug}))`)).returning();
   return done.length > 0;
+}
+
+// ---- creating challenges (admin page; scripts/challenge.mjs does the same from the command line) ----
+
+/** One puzzle per player that a challenge may use: never a moment still to come in the daily (that would spoil it). */
+function challengeBank(today = istDate()) {
+  const ahead = new Set(dayKeys.filter((d) => d >= today).flatMap((d) => content.days[d].map((k) => content.puzzles[k].anchor)));
+  const byPlayer = new Map<string, string>(), scheduled = new Set<string>();
+  for (const [k, p] of Object.entries(ALL)) {
+    if (ahead.has(p.anchor)) { scheduled.add(p.player); continue; }
+    if (!byPlayer.has(p.player) || k.startsWith("d:")) byPlayer.set(p.player, k); // prefer the 1v1 bank's (biggest moment)
+  }
+  return { byPlayer, blocked: [...scheduled].filter((id) => !byPlayer.has(id)) };
+}
+
+/** Every player the guess box knows, marked usable or not, most-documented first (for the admin picker). */
+export function challengeCandidates() {
+  const { byPlayer, blocked } = challengeBank();
+  const bad = new Set(blocked);
+  return [...byPlayer.keys(), ...bad].map((id) => {
+    const p = whoPlayer(id)!;
+    const k = byPlayer.get(id);
+    return { id, name: p.name, team: p.team, photo: p.photo, fame: k ? ALL[k].fame : 0, usable: !!k };
+  }).sort((a, b) => Number(b.usable) - Number(a.usable) || b.fame - a.fame);
+}
+
+export async function createChallenge(input: { slug: string; title: string; host: string; players: string[]; hostPlayerId?: string }) {
+  const slug = input.slug.trim().toLowerCase(), title = input.title.trim(), host = input.host.trim().replace(/^@/, "");
+  if (!/^[a-z0-9-]{2,30}$/.test(slug)) return { error: "Link name: 2–30 lowercase letters, numbers or dashes." } as const;
+  if (title.length < 3 || title.length > 60) return { error: "Give it a title (3 to 60 characters)." } as const;
+  if (!/^[A-Za-z0-9_]{1,30}$/.test(host)) return { error: "Host: the creator's X handle." } as const;
+  const ids = [...new Set(input.players)];
+  if (ids.length < 3 || ids.length > 5) return { error: "Pick 3 to 5 players." } as const;
+  const { byPlayer } = challengeBank();
+  const missing = ids.filter((id) => !byPlayer.has(id));
+  if (missing.length) return { error: `Can't use ${missing.map((id) => whoPlayer(id)?.name ?? id).join(", ")}: every moment we hold is coming up in the daily.` } as const;
+  const db = await getDb();
+  const hostKey = randomBytes(9).toString("base64url");
+  // A self-hosted challenge (anyone, /mystery/host) is seated to its creator at once; an admin-made one waits for the
+  // host link.
+  const ins = await db.insert(schema.whoChallenges).values({ slug, title, hostHandle: host, puzzles: ids.map((id) => byPlayer.get(id)!), hostKey, createdMs: Date.now(), hostPlayerId: input.hostPlayerId ?? null }).onConflictDoNothing().returning();
+  if (!ins.length) return { error: `The link "${slug}" is taken. Pick another.` } as const;
+  return { ok: true, slug, hostKey } as const;
+}
+
+/** Admin list: each challenge with how many have played and whether the host has set a score. */
+export async function listChallenges() {
+  const db = await getDb();
+  const rows = await db.select().from(schema.whoChallenges).orderBy(desc(schema.whoChallenges.createdMs));
+  const counts = await db.select({ date: schema.whoResults.date, n: sql<number>`count(*)::int` }).from(schema.whoResults).where(sql`${schema.whoResults.date} like 'c:%'`).groupBy(schema.whoResults.date);
+  const hostPlayed = await db.select({ date: schema.whoResults.date }).from(schema.whoResults).innerJoin(schema.whoChallenges, and(eq(schema.whoChallenges.hostPlayerId, schema.whoResults.playerId), sql`${schema.whoResults.date} = 'c:' || ${schema.whoChallenges.slug}`));
+  const n = new Map(counts.map((c) => [c.date, c.n])), played = new Set(hostPlayed.map((h) => h.date));
+  return rows.map((c) => ({
+    slug: c.slug, title: c.title, host: c.hostHandle, hostKey: c.hostKey, active: c.active, createdMs: c.createdMs,
+    players: c.puzzles.map((k) => whoPlayer(ALL[k]?.player ?? "")?.name ?? "?"), plays: n.get(`c:${c.slug}`) ?? 0,
+    hostClaimed: !!c.hostPlayerId, hostPlayed: played.has(`c:${c.slug}`),
+  }));
+}
+export async function setChallengeActive(slug: string, active: boolean) {
+  const db = await getDb();
+  return (await db.update(schema.whoChallenges).set({ active }).where(eq(schema.whoChallenges.slug, slug)).returning()).length > 0;
+}
+
+const HOST_PER_DAY = 3;
+/** Anyone with a player profile hosts their own challenge, under their own handle (no hosting as someone else). */
+export async function hostChallenge(pid: string, input: { title: string; players: string[] }) {
+  const db = await getDb();
+  const [p] = await db.select({ handle: schema.players.handle }).from(schema.players).where(eq(schema.players.id, pid));
+  if (!p?.handle) return { error: "Set up your player first.", needProfile: true } as const;
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.whoChallenges)
+    .where(and(eq(schema.whoChallenges.hostPlayerId, pid), sql`${schema.whoChallenges.createdMs} > ${Date.now() - 864e5}`));
+  if (n >= HOST_PER_DAY) return { error: `You can host ${HOST_PER_DAY} new challenges a day. Try again tomorrow.` } as const;
+  const base = input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 22).replace(/^-+|-+$/g, "") || "challenge";
+  const slug = `${base}-${randomBytes(3).toString("hex").slice(0, 4)}`; // readable, and nobody can guess or take someone else's
+  return createChallenge({ slug, title: input.title, host: p.handle.replace(/^guest_/, "guest"), players: input.players, hostPlayerId: pid });
+}
+
+/** A player's own hosted challenges, newest first, with how many have played. */
+export async function myChallenges(pid: string) {
+  const db = await getDb();
+  const rows = await db.select().from(schema.whoChallenges).where(eq(schema.whoChallenges.hostPlayerId, pid)).orderBy(desc(schema.whoChallenges.createdMs));
+  if (!rows.length) return [];
+  const counts = await db.select({ date: schema.whoResults.date, n: sql<number>`count(*)::int` }).from(schema.whoResults)
+    .where(sql`${schema.whoResults.date} in (${sql.join(rows.map((r) => sql`${"c:" + r.slug}`), sql`, `)})`).groupBy(schema.whoResults.date);
+  const n = new Map(counts.map((c) => [c.date, c.n]));
+  return rows.map((c) => ({ slug: c.slug, title: c.title, active: c.active, players: c.puzzles.map((k) => whoPlayer(ALL[k]?.player ?? "")?.name ?? "?"), plays: n.get(`c:${c.slug}`) ?? 0 }));
 }

@@ -14,6 +14,7 @@ const GROUPS: { title: string; items: { href: string; label: string; sub: string
     { href: "/archive", label: "Archive", sub: "Every past game", icon: <Archive weight="duotone" /> },
   ] },
   { title: "Compete", items: [
+    { href: "/mystery/host", label: "Host a challenge", sub: "Pick cricketers, challenge friends", icon: <Crown weight="duotone" /> },
     { href: "/mystery/duel", label: "Name Race 1v1", sub: "First to name the cricketer", icon: <Sword weight="duotone" /> },
     { href: "/live", label: "Live 1v1", sub: "Same ball, same moment", icon: <Lightning weight="duotone" /> },
     { href: "/cups", label: "Cups", sub: "Knockout tournaments", icon: <Trophy weight="duotone" /> },

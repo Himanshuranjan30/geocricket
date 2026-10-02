@@ -185,7 +185,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         <nav className="hidden items-center gap-1 lg:flex">
           <Menu label="Singleplayer" items={[["/play", "Daily Challenge"], ["/nets", "Nets"], ["/archive", "Archive"]]} />
           <Link href="/locker" className="display px-3 py-2 text-sm !text-[#F5C000] !no-underline hover:brightness-110">Legends</Link>
-          <Menu label="Multiplayer" items={[["/live", "Live 1v1"], ["/mystery/duel", "Name Race 1v1"], ["/cups", "Cups"], ["/groups", "Groups"]]} />
+          <Menu label="Multiplayer" items={[["/live", "Live 1v1"], ["/mystery/duel", "Name Race 1v1"], ["/mystery/host", "Host a challenge"], ["/cups", "Cups"], ["/groups", "Groups"]]} />
           <Link href="/leaderboard" className="display px-3 py-2 text-sm !text-cream !no-underline hover:text-ok">Leaderboards</Link>
           <Link href="/how-it-works" className="display hidden whitespace-nowrap px-3 py-2 text-xs xl:block !text-muted !no-underline hover:!text-cream">How to play</Link>
         </nav>
