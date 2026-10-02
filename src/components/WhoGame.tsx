@@ -18,11 +18,14 @@ type Item = {
   answer: { id: string; name: string; team: string; story: string; photo: boolean } | null;
 };
 type Rival = { handle: string | null; avatar: string | null; total: number; steps: (number | null)[] };
-type View = { date: string; number: number; items: Item[]; total: number; finished: boolean; result: { total: number; betterThan: number | null; share: string } | null; rival?: Rival | null };
+type Board = { rank: number; handle: string; total: number; host: boolean; me: boolean };
+type Challenge = { slug: string; title: string; hostHandle: string; isHost: boolean; hostTotal: number | null; hostSteps: (number | null)[] | null; players: number; top: Board[]; me: Board | null };
+type View = { date: string; number: number; items: Item[]; total: number; finished: boolean; result: { total: number; betterThan: number | null; share: string } | null; rival?: Rival | null; challenge?: Challenge | null };
 type Top = { rank: number; handle: string; value: number; me: boolean }[];
 
-/** Who's the Player?: three players a day; clues reveal one at a time, the globe flies to each ground. */
-export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
+/** Mystery Cricketer: three players a day (or a creator's challenge set, `set` = "c:<slug>"); clues reveal one at a
+ * time, the globe flies to each ground. */
+export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; set?: string; host?: string }) {
   const [view, setView] = useState<View | null>(null);
   const [players, setPlayers] = useState<WhoP[]>([]);
   const [rival, setRival] = useState<Rival | null>(null); // from a friend's "beat my Who" link
@@ -33,37 +36,50 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
   const [copied, setCopied] = useState(false);
   const [streak, setStreak] = useState<number | null>(null);
   const [top, setTop] = useState<Top | null>(null);
+  const [intro, setIntro] = useState(false); // a creator challenge opens on its card, not straight into clue 1
   const api = useRef<GlobeApi | null>(null);
   const [globeReady, setGlobeReady] = useState(false);
   const shown = useRef("");
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const qs = new URLSearchParams({ ...(date ? { date } : {}), ...(vs ? { vs } : {}) }).toString();
+    const qs = new URLSearchParams({ ...(set ? { set } : date ? { date } : {}), ...(vs ? { vs } : {}), ...(host ? { host } : {}) }).toString();
     fetch(`/api/who${qs ? `?${qs}` : ""}`, { cache: "no-store" }).then(async (r) => {
       const v = await r.json();
       if (!r.ok) { setError(v.error ?? "No puzzle today."); return; }
       setView(v);
       if (v.rival) { setRival(v.rival); track("who_challenge_opened", { number: v.number }); }
+      const c = (v as View).challenge;
+      if (c) {
+        // The host's run is the score to beat (shown clue by clue, like a friend's challenge link).
+        if (!c.isHost && c.hostTotal != null && c.hostSteps) setRival({ handle: c.hostHandle, avatar: null, total: c.hostTotal, steps: c.hostSteps });
+        setIntro((v as View).items.every((i) => i.step === 0 && !i.done));
+        track("creator_challenge_opened", { slug: c.slug, host: c.isHost });
+      }
       const first = (v as View).items.findIndex((i) => !i.done);
       setCur(first < 0 ? null : first);
       track("who_opened", { number: v.number, resumed: first !== 0 });
     }, () => setError("Couldn't load today's players. Check your connection and refresh."));
     fetch("/api/who/players").then((r) => r.json()).then(setPlayers, () => {});
-  }, [date, vs]);
+  }, [date, vs, set, host]);
   const finished = !!view?.finished;
   useEffect(() => {
     if (!finished) return;
     const t = setTimeout(() => { // results are saved just after the last guess
+      if (set) { // a challenge: refresh its leaderboard (it doesn't count for the streak or the daily boards)
+        fetch(`/api/who?set=${encodeURIComponent(set)}`, { cache: "no-store" }).then((r) => r.json()).then((v) => v?.challenge && setView(v), () => {});
+        return;
+      }
       fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).then((m) => setStreak(m?.streak ?? null), () => {});
       fetch("/api/boards?board=who&period=day&limit=5", { cache: "no-store" }).then((r) => r.json()).then((b) => setTop(b?.top ?? null), () => {});
     }, 900);
     return () => clearTimeout(t);
-  }, [finished]);
+  }, [finished, set]);
   useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), 2600); return () => clearTimeout(t); }, [notice]);
 
   const item = view && cur !== null ? view.items[cur] : null;
   const rivalName = rival?.handle ? `@${rival.handle}` : "Your friend";
+  const ch = view?.challenge ?? null;
   const onReady = useCallback((g: GlobeApi) => { api.current = g; g.labels(true); setGlobeReady(true); }, []);
 
   // Globe choreography: fly to the ground on clue 1, draw the career trail on clue 4, back to the ground on the reveal.
@@ -138,7 +154,7 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
       {/* Top HUD */}
       <div className="tv-ui pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-3 pt-[calc(env(safe-area-inset-top)+10px)] sm:px-5">
         <Link href="/" aria-label="Home" className="hud-box pointer-events-auto flex items-center gap-2 px-3 py-2 !text-cream !no-underline">
-          <House weight="fill" size={14} className="text-muted" /><span className="hud-label">Mystery Cricketer{view ? ` #${view.number}` : ""}</span>
+          <House weight="fill" size={14} className="text-muted" /><span className="hud-label">{ch ? ch.title : `Mystery Cricketer${view ? ` #${view.number}` : ""}`}</span>
         </Link>
         {view && (
           <div className="pointer-events-auto flex items-stretch gap-1.5">
@@ -157,7 +173,23 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
 
       {rival && view && !view.finished && (
         <div className="tv-ui pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+64px)] flex justify-center px-3">
-          <p className="hud-box flex items-center gap-2 px-3 py-1.5 text-sm"><Sword weight="fill" className="text-[#F5C000]" /><b>{rivalName}</b> scored {rival.total} <span aria-hidden>{rival.steps.map(tile).join("")}</span> · beat it</p>
+          <p className="hud-box flex items-center gap-2 px-3 py-1.5 text-sm"><Sword weight="fill" className="text-[#F5C000]" />{ch && <span className="text-muted">Host</span>}<b>{rivalName}</b> scored {rival.total} <span aria-hidden>{rival.steps.map(tile).join("")}</span> · beat it</p>
+        </div>
+      )}
+
+      {/* A creator challenge opens on its card: who's hosting, how many players, the score to beat */}
+      {ch && intro && view && (
+        <div className="tv-ui absolute inset-x-0 bottom-0 mx-auto max-w-[520px] px-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+          <div className="glass flex flex-col items-center gap-3 rounded-3xl p-5 text-center">
+            <p className="display text-xs tracking-[.18em] text-[#F5C000]">MYSTERY CRICKETER · CREATOR CHALLENGE</p>
+            <h1 className="display text-3xl leading-tight">{ch.title}</h1>
+            <p className="text-sm text-muted">Hosted by <b className="text-cream">@{ch.hostHandle}</b> · {view.items.length} cricketers · {ch.players} played</p>
+            <div className="flex gap-2" aria-hidden>{view.items.map((i) => <Mystery key={i.idx} size={44} />)}</div>
+            {ch.isHost ? <p className="rounded-2xl bg-[#F5C000]/15 px-3 py-2 text-sm">You&apos;re the host. Play first: your score is the one your followers have to beat.</p>
+              : ch.hostTotal != null ? <p className="text-sm">The host scored <b>{ch.hostTotal}</b>/{view.items.length * POINTS[0]}. Can you beat it?</p>
+              : <p className="text-sm text-muted">Name each cricketer in as few clues as you can.</p>}
+            <button onClick={() => { setIntro(false); setTimeout(() => input.current?.focus(), 300); track("creator_challenge_start", { slug: ch.slug }); }} className="btn-primary w-full py-3.5 text-xl">Play</button>
+          </div>
         </div>
       )}
 
@@ -168,7 +200,7 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
       )}
 
       {/* The puzzle: clues stacked, the newest on top of the guess box */}
-      {item && (
+      {item && !intro && (
         <section aria-label={`Player ${item.idx + 1}`} className="tv-ui absolute inset-x-0 bottom-0 mx-auto flex max-h-[62svh] max-w-[620px] flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
           <div className="glass flex min-h-0 flex-col overflow-hidden rounded-3xl">
             <div className="flex items-center gap-3 bg-gradient-to-r from-ball to-[#B0203A] px-4 py-2">
@@ -228,8 +260,8 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
       {/* Day summary */}
       {view && cur === null && (
         <section aria-label="Today's score" className="tv-ui absolute inset-x-0 bottom-0 mx-auto max-w-[520px] px-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-          <div className="glass flex flex-col gap-3 rounded-3xl p-5 text-center">
-            <p className="display text-sm tracking-[.16em] text-muted">Mystery Cricketer #{view.number}</p>
+          <div className="glass flex max-h-[calc(100svh-env(safe-area-inset-top)-84px)] flex-col gap-3 overflow-y-auto rounded-3xl p-5 text-center">
+            <p className="display text-sm tracking-[.16em] text-muted">{ch ? ch.title : `Mystery Cricketer #${view.number}`}</p>
             <p className="display text-5xl leading-none">{view.total}<span className="text-xl text-muted"> / {view.items.length * POINTS[0]}</span></p>
             <div className="flex justify-center gap-4">
               {view.items.map((i) => (
@@ -239,9 +271,9 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
                 </div>
               ))}
             </div>
-            {streak != null && streak > 0 && <p className="flex items-center justify-center gap-1.5 text-sm"><Fire weight="fill" className="text-[#FF9F43]" /><b>{streak}-day streak</b><span className="text-muted">· counts with every game</span></p>}
-            {view.result?.betterThan != null && <p className="text-sm text-muted">Better than {view.result.betterThan}% of players today</p>}
-            {top && top.length > 0 && (
+            {!ch && streak != null && streak > 0 && <p className="flex items-center justify-center gap-1.5 text-sm"><Fire weight="fill" className="text-[#FF9F43]" /><b>{streak}-day streak</b><span className="text-muted">· counts with every game</span></p>}
+            {!ch && view.result?.betterThan != null && <p className="text-sm text-muted">Better than {view.result.betterThan}% of players today</p>}
+            {!ch && top && top.length > 0 && (
               <div className="rounded-2xl bg-white/5 p-3 text-left">
                 <p className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-[.14em] text-muted"><Trophy weight="fill" className="text-[#F5C000]" />Today&apos;s top</p>
                 <ol className="flex flex-col gap-1 text-sm">
@@ -254,6 +286,20 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
                 <Link href="/leaderboard" className="mt-1.5 block text-xs text-muted underline">All leaderboards</Link>
               </div>
             )}
+            {ch && ch.top.length > 0 && (
+              <div className="rounded-2xl bg-white/5 p-3 text-left">
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-[.14em] text-muted"><Trophy weight="fill" className="text-[#F5C000]" />Challenge leaderboard · {ch.players} played</p>
+                <ol className="flex max-h-56 flex-col gap-1 overflow-y-auto text-sm">
+                  {ch.top.map((t) => (
+                    <li key={t.rank} className={`flex justify-between gap-2 rounded-lg px-2 py-1 ${t.me ? "bg-[#F5C000]/15 font-semibold" : ""}`}>
+                      <span className="truncate">{t.rank}. {t.handle}{t.host && <span className="ml-1.5 rounded-full bg-ball px-1.5 text-[10px] uppercase">Host</span>}</span><span className="tabular-nums">{t.total}</span>
+                    </li>
+                  ))}
+                  {ch.me && ch.me.rank > ch.top.length && <li className="flex justify-between gap-2 rounded-lg bg-[#F5C000]/15 px-2 py-1 font-semibold"><span>{ch.me.rank}. You</span><span className="tabular-nums">{ch.me.total}</span></li>}
+                </ol>
+              </div>
+            )}
+            {ch?.isHost && <p className="text-sm text-muted">You set the score. Share the challenge so your followers can try to beat it.</p>}
             {rival && view.result && (
               <div className="rounded-2xl bg-white/5 p-3" aria-label="Head to head">
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -265,7 +311,7 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
               </div>
             )}
             <Link href="/mystery/duel" onClick={() => track("who_duel_cta", { from: "summary" })} className="btn-ghost flex items-center justify-center gap-2 py-3 font-semibold !text-cream !no-underline">
-              <Sword weight="fill" className="text-[#F5C000]" />{rival ? `Race ${rivalName} live` : "1v1 Name Race"}<span className="text-sm font-normal text-muted">· first to name him wins</span>
+              <Sword weight="fill" className="text-[#F5C000]" />{rival && !ch ? `Race ${rivalName} live` : "1v1 Name Race"}<span className="text-sm font-normal text-muted">· first to name him wins</span>
             </Link>
             {view.result ? (
               <div className="flex flex-wrap justify-center gap-2">
@@ -275,7 +321,8 @@ export function WhoGame({ date, vs }: { date?: string; vs?: string }) {
                 <button onClick={copy} className="btn-ghost px-4 py-3 font-semibold">{copied ? "Copied" : "Copy"}</button>
               </div>
             ) : <p className="text-sm text-muted">Saving your score…</p>}
-            <p className="text-xs text-muted">Three new players at midnight IST. <Link href="/" className="underline">Back home</Link></p>
+            {ch ? <p className="text-xs text-muted"><Link href="/mystery" className="underline">Play today&apos;s Mystery Cricketer</Link> · <Link href="/" className="underline">Home</Link></p>
+              : <p className="text-xs text-muted">Three new players at midnight IST. <Link href="/" className="underline">Back home</Link></p>}
           </div>
         </section>
       )}

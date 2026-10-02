@@ -20,7 +20,8 @@ export async function POST(req: Request) {
   if (view?.finished) {
     const steps = view.items.map((i) => i.solvedAt);
     // Saved before replying so the streak, boards and percentile the summary fetches next already include this day.
-    if (await saveWhoResult(pid, date, steps, view.total)) { bustBoards(); after(() => addXp(pid, Math.round(view.total / 10))); }
+    // Creator challenges pay half XP (they're extra play, not the daily) and don't touch the boards.
+    if (await saveWhoResult(pid, date, steps, view.total)) { if (!view.challenge) bustBoards(); after(() => addXp(pid, Math.round(view.total / (view.challenge ? 20 : 10)))); }
   }
   return NextResponse.json({ correct: "correct" in res ? res.correct : undefined, view });
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, like, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like, lte, sql, notLike } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { getAuth } from "./auth";
 import { getDb, schema } from "@/db";
@@ -198,7 +198,7 @@ export async function playedDays(pid: string) {
   // A finished Who's the Player? day counts for the streak like any finished game.
   const [rows, who] = await Promise.all([
     db.select({ at: scores.createdAt }).from(scores).where(eq(scores.playerId, pid)),
-    db.select({ at: schema.whoResults.createdAt }).from(schema.whoResults).where(eq(schema.whoResults.playerId, pid)),
+    db.select({ at: schema.whoResults.createdAt }).from(schema.whoResults).where(and(eq(schema.whoResults.playerId, pid), notLike(schema.whoResults.date, "c:%"))), // creator challenges don't keep the streak
   ]);
   return [...new Set([...rows, ...who].map((r) => istDayOf(r.at.getTime())))].sort().reverse();
 }

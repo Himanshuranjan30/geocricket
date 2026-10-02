@@ -409,3 +409,16 @@ export const whoBuzzes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.duelId, t.playerId, t.round, t.clue] })],
 );
+
+// Mystery Cricketer creator challenges (/mystery/c/<slug>): a host's hand-picked puzzles. Plays reuse who_guesses and
+// who_results with date = "c:<slug>".
+export const whoChallenges = pgTable("who_challenges", {
+  slug: text("slug").primaryKey(),
+  title: text("title").notNull(),
+  hostHandle: text("host_handle").notNull(),
+  hostPlayerId: text("host_player_id"), // the player who opened the host link (?host=<hostKey>): their score is the one to beat
+  hostKey: text("host_key").notNull(), // secret in the host's link, so nobody can claim the host seat by picking their handle
+  puzzles: jsonb("puzzles").$type<string[]>().notNull(), // keys into who-duel.json / who.json puzzles
+  createdMs: bigint("created_ms", { mode: "number" }).notNull(),
+  active: boolean("active").notNull().default(true),
+});

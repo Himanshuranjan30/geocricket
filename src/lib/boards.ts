@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, inArray, isNull, like, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, like, lte, notLike, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { dayEndMs, dayStartMs, istDate, MULTIPLIERS, periodRange, type Period } from "./game";
 import { currentWeek } from "./league";
@@ -56,7 +56,7 @@ async function recentGames() {
   }
   // Who's the Player? days count as a 3-ball game.
   const who = await db.select({ pid: whoResults.playerId, total: whoResults.total, at: whoResults.createdAt }).from(whoResults)
-    .where(gte(whoResults.createdAt, new Date(dayStartMs(windowStart(istDate(), WINDOW_DAYS)))));
+    .where(and(gte(whoResults.createdAt, new Date(dayStartMs(windowStart(istDate(), WINDOW_DAYS)))), notLike(whoResults.date, "c:%"))); // daily only, not creator challenges
   for (const r of who) (by.get(r.pid) ?? by.set(r.pid, []).get(r.pid)!).push({ day: istDayOf(r.at.getTime()), pct: r.total / WHO_MAX, balls: 3 });
   return by;
 }
@@ -74,7 +74,7 @@ async function entries(board: Exclude<BoardId, "countries">, period: Period): Pr
     const [start, end] = periodRange(today, period);
     // By puzzle date, not play time: an old day opened from a friend's link doesn't pad this period's board.
     const whoRows = await db.select({ pid: whoResults.playerId, total: whoResults.total, at: whoResults.createdAt }).from(whoResults)
-      .where(and(gte(whoResults.date, start), lte(whoResults.date, end)));
+      .where(and(gte(whoResults.date, start), lte(whoResults.date, end), notLike(whoResults.date, "c:%")));
     const rows = board === "who" ? whoRows.map((r) => ({ ...r, flagged: false })) : [
       ...(await db.select({ pid: scores.playerId, total: scores.total, at: scores.createdAt, flagged: scores.flagged }).from(scores)
         .where(and(gte(scores.createdAt, new Date(dayStartMs(start))), sql`${scores.createdAt} <= ${new Date(dayEndMs(end))}`))),
@@ -101,7 +101,7 @@ async function entries(board: Exclude<BoardId, "countries">, period: Period): Pr
     // ponytail: reads every score; fine until scores reach the millions, then keep a per-player streak column.
     const [scoreRows, whoDays, saves] = await Promise.all([
       db.select({ pid: scores.playerId, at: scores.createdAt }).from(scores),
-      db.select({ pid: whoResults.playerId, at: whoResults.createdAt }).from(whoResults),
+      db.select({ pid: whoResults.playerId, at: whoResults.createdAt }).from(whoResults).where(notLike(whoResults.date, "c:%")),
       db.select({ pid: owned.playerId, item: owned.itemId }).from(owned).where(like(owned.itemId, "save:%")),
     ]);
     const days = new Map<string, Set<string>>(), saved = new Map<string, string[]>();
