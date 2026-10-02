@@ -107,7 +107,7 @@ export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; s
     if (!view || !item || busy) return;
     setBusy(true); setNotice(null);
     try {
-      const r = await fetch("/api/who/guess", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: view.date, idx: item.idx, pick }) });
+      const r = await fetch("/api/who/guess", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: view.date, idx: item.idx, pick, step: item.step }) });
       const d = await r.json();
       if (!r.ok) { setNotice(d.error ?? "That didn't go through. Tap again."); return; }
       setView(d.view);

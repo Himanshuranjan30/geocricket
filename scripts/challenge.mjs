@@ -55,8 +55,13 @@ if (problems.length) { console.log("Can't create it:\n  " + problems.join("\n  "
 const row = { slug, title, host_handle: host, puzzles: JSON.stringify(keys), host_key: randomBytes(9).toString("base64url"), created_ms: Date.now() };
 const q = "insert into who_challenges (slug, title, host_handle, puzzles, host_key, created_ms) values ($1, $2, $3, $4::jsonb, $5, $6)";
 const vals = [row.slug, row.title, row.host_handle, row.puzzles, row.host_key, row.created_ms];
-if (process.env.DATABASE_URL) { const { neon } = await import("@neondatabase/serverless"); await neon(process.env.DATABASE_URL).query(q, vals); }
-else { const { PGlite } = await import("@electric-sql/pglite"); const db = new PGlite(process.env.PGLITE_DIR ?? ".pglite"); await db.query(q, vals); await db.close(); }
+try {
+  if (process.env.DATABASE_URL) { const { neon } = await import("@neondatabase/serverless"); await neon(process.env.DATABASE_URL).query(q, vals); }
+  else { const { PGlite } = await import("@electric-sql/pglite"); const db = new PGlite(process.env.PGLITE_DIR ?? ".pglite"); await db.query(q, vals); await db.close(); }
+} catch (e) {
+  console.log(/duplicate key|unique/i.test(String(e?.message)) ? `Can't create it: the slug "${slug}" is already taken. Pick another.` : `Couldn't save it: ${String(e?.message).slice(0, 200)}`);
+  process.exit(1);
+}
 
 const site = process.env.SITE ?? "https://geocricket.app";
 console.log(`✓ ${title}: ${keys.map((k) => people.get(ALL[k].player).name).join(", ")}`);

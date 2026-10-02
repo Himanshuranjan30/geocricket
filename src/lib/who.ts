@@ -103,7 +103,7 @@ export async function whoView(pid: string | null, date: string, vs?: string | nu
 
 /** Records one guess (pick = player id) or skip (pick = null). Safe to retry: the step is decided here, and a second
  * request for the same step hits the primary key and changes nothing. */
-export async function whoGuess(pid: string, date: string, idx: number, pick: string | null) {
+export async function whoGuess(pid: string, date: string, idx: number, pick: string | null, at?: number) {
   const day = await whoSet(date);
   if (!day || !Number.isInteger(idx) || idx < 0 || idx >= day.puzzles.length) return { error: "That puzzle isn't open." } as const;
   if (pick !== null && !playerById.has(pick)) return { error: "Pick a player from the list." } as const;
@@ -111,6 +111,8 @@ export async function whoGuess(pid: string, date: string, idx: number, pick: str
   const mine = await db.select().from(schema.whoGuesses).where(and(eq(schema.whoGuesses.playerId, pid), eq(schema.whoGuesses.date, date), eq(schema.whoGuesses.idx, idx)));
   const st = puzzleState(mine);
   if (st.done) return { ok: true, already: true } as const;
+  // The client says which clue it was looking at: a double-tap or a retried request meant for an earlier clue is a no-op.
+  if (at !== undefined && at !== st.step) return { ok: true, already: true } as const;
   if (pick !== null && st.picks.includes(pick)) return { error: "You've already tried that player." } as const;
   const correct = pick === day.puzzles[idx].player;
   // A parallel guess may have taken this step first; only claim "correct" if ours is the one recorded.
@@ -150,10 +152,13 @@ async function challengeInfo(c: Challenge, me: string | null) {
   };
 }
 
-/** Opening the host link (?host=<key>) makes this player the challenge's host, once. */
+/** Opening the host link (?host=<key>) makes this player the challenge's host. The seat can move until the host has
+ * finished the challenge: two first requests racing (no cookie yet) each make a guest, and the browser keeps the
+ * second one, so the last claim before the host plays wins. Once the host has a result, the seat is fixed. */
 export async function claimHost(slug: string, key: string, pid: string) {
   const db = await getDb();
   const done = await db.update(schema.whoChallenges).set({ hostPlayerId: pid })
-    .where(and(eq(schema.whoChallenges.slug, slug), eq(schema.whoChallenges.hostKey, key), sql`${schema.whoChallenges.hostPlayerId} is null`)).returning();
+    .where(and(eq(schema.whoChallenges.slug, slug), eq(schema.whoChallenges.hostKey, key),
+      sql`(${schema.whoChallenges.hostPlayerId} is null or not exists (select 1 from who_results r where r.player_id = ${schema.whoChallenges.hostPlayerId} and r.date = 'c:' || ${schema.whoChallenges.slug}))`)).returning();
   return done.length > 0;
 }

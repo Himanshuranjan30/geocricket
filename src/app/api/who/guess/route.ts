@@ -12,9 +12,10 @@ export async function POST(req: Request) {
   const date = typeof body?.date === "string" ? body.date : "";
   const idx = Number(body?.idx);
   const pick = typeof body?.pick === "string" ? body.pick : null;
+  const at = Number.isInteger(body?.step) ? (body.step as number) : undefined; // the clue the player was on
   const pid = await playerId(true);
   if (!pid) return NextResponse.json({ error: "Couldn't start your game. Refresh and try again." }, { status: 500 });
-  const res = await whoGuess(pid, date, idx, pick);
+  const res = await whoGuess(pid, date, idx, pick, at);
   if ("error" in res) return NextResponse.json({ error: res.error }, { status: 400 });
   const view = await whoView(pid, date);
   if (view?.finished) {

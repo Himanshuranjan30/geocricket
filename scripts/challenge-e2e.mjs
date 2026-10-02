@@ -50,8 +50,6 @@ ok((await imposter.view()).challenge.isHost === false, "wrong host key doesn't s
 const host = new P();
 await host.req("/api/me", { handle: `h${Date.now() % 1e8}`, avatar: "hostqa-gold", country: "IN" });
 ok((await host.view(`&host=${KEY}`)).challenge.isHost === true, "host link seats the host");
-const thief = new P();
-ok((await thief.view(`&host=${KEY}`)).challenge.isHost === false, "the host seat can't be taken twice");
 
 // ---- host plays (all on clue 1): score to beat, XP at half rate, nothing else moves ----
 const xp0 = (await host.me()).level.xp;
@@ -60,6 +58,8 @@ const max = hv.items.length * 100;
 ok(hv.finished && hv.total === max, `host perfect run = ${hv.total}`);
 ok(hv.result?.share.includes(`/mystery/c/${SLUG}`) && hv.result.share.includes(hv.challenge.title), "share text names the challenge and links it");
 ok(hv.challenge.top[0]?.host && hv.challenge.top[0].me, "host tops the leaderboard, marked host");
+const thief = new P();
+ok((await thief.view(`&host=${KEY}`)).challenge.isHost === false, "once the host has played, the seat can't be taken");
 const me1 = await host.me();
 ok(me1.level.xp - xp0 === Math.round(max / 20), `XP at half rate (+${me1.level.xp - xp0})`);
 ok(me1.streak === 0, `a challenge doesn't start a streak (streak ${me1.streak})`);
