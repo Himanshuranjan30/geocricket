@@ -180,7 +180,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
           <img src="/globe-poster.webp" alt="" aria-hidden fetchPriority="high" className={`dash-poster ${painted ? "gone" : ""}`} />
           <Globe onTap={() => {}} onReady={onReady} onPainted={onPainted} />
         </div>
-        <PlayerFigure code={me?.profile?.avatar ?? "pitchmap-india"} className="dash-figure" mood={mood} />
+        <PlayerFigure code={me?.profile?.avatar ?? "pitchmap-india"} className="dash-figure" mood={mood} poses />
         <div className="dash-switch"><CharacterSwitcher /></div>
         <button onClick={() => (me?.profile ? setSetup("edit") : setSetup("play"))} className="dash-edit display flex items-center gap-1.5 rounded-full bg-[#6B4CE6] px-5 py-2 text-sm shadow-[0_4px_0_#3E2A9A,0_10px_30px_rgba(0,0,0,.4)] hover:brightness-110">
           <PencilSimple weight="bold" size={14} />{me?.profile ? "Edit avatar" : "Create player"}

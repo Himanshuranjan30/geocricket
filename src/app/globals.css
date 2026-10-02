@@ -321,3 +321,11 @@ a:hover > .mode-card, button:hover > .mode-card { transform: translateY(-2px); f
 @keyframes fig-slump { to { transform: scale(.97, .95); } }
 .fig-render.mood-sad { animation: fig-slump 1.2s ease-out forwards; transform-origin: 50% 100%; }
 .fig-render.mood-happy, .fig-render.mood-celebrate, .fig-render.mood-shocked, .fig-render.mood-nervous { transform-origin: 50% 100%; }
+/* Home figure pose set: every pose is registered to stand in the same spot (pose frames carry 18% headroom above the
+   figure for raised bats), stacked, crossfaded. The box grows by that headroom so the character's on-screen size and
+   feet stay exactly where the single render had them. No motion at all: only the pose changes. */
+.dash-figure.fig-poses { position: absolute; height: calc(var(--fh) / .82); top: calc(var(--gtop) + var(--gd) * .16 - var(--fh) / .82); }
+.fig-poses .fig-pose { opacity: 0; transition: opacity .35s ease; pointer-events: none; }
+.fig-poses .fig-pose.on { opacity: 1; }
+.dash-figure, .dash-figure * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .fig-poses .fig-pose { transition: none; } }
