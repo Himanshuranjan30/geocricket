@@ -303,3 +303,16 @@ a:hover > .mode-card, button:hover > .mode-card { transform: translateY(-2px); f
 @media (prefers-reduced-motion: reduce) { .mystery, .face-pop { animation: none; } }
 /* The character figure is decoration: its shadow and body never take taps meant for buttons beside or below it. */
 .fig-shadow, .fig-body, .fig-head, .fig-bat { pointer-events: none; }
+/* The home character switcher is one row, never a wrapped grid: positioned from the centre it would otherwise only get
+   half the screen's width (and pile up over the Take guard button). Too many characters → it scrolls sideways. */
+.dash-switch { width: max-content; max-width: calc(100vw - 24px); }
+.dash-switch > div { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.dash-switch > div::-webkit-scrollbar { display: none; }
+.dash-switch > div > * { flex-shrink: 0; }
+/* Phone: Edit avatar → character row → Take guard, stacked up from the bottom so they never overlap (the button is
+   pinned to the bottom; the other two used to be placed from the globe and landed on top of it). */
+@media (max-width: 1023px) {
+  .dash-switch { top: auto; bottom: calc(env(safe-area-inset-bottom) + 16px + 76px + 10px); }
+  .dash-figure.fig-render ~ .dash-edit, .dash-edit { top: auto; bottom: calc(env(safe-area-inset-bottom) + 16px + 76px + 10px + 60px + 10px); }
+  .dash-switch:empty ~ .dash-edit, .dash-switch:not(:has([role=radiogroup])) ~ .dash-edit { bottom: calc(env(safe-area-inset-bottom) + 16px + 76px + 12px); }
+}
