@@ -16,7 +16,12 @@ const authClient = token ? new OAuth2Client() : undefined;
 authClient?.setCredentials({ access_token: token });
 let refreshedAt = Date.now();
 const refresh = () => { if (account && authClient) { authClient.setCredentials({ access_token: fresh() }); refreshedAt = Date.now(); } };
-const clients = REGIONS.map((location) => new GoogleGenAI({ vertexai: true, project: "pitchmap-510208", location, googleAuthOptions: authClient ? { authClient } : undefined }));
+// GEMINI_API_KEY (a Google AI Studio key, its own billing) takes priority over Vertex. Vertex runs only when explicitly
+// asked for with USE_VERTEX=1, so no script ever falls back to whatever gcloud account happens to be signed in.
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey && !process.env.USE_VERTEX) throw new Error("Set GEMINI_API_KEY (Google AI Studio key) to generate images. Vertex is off unless USE_VERTEX=1.");
+const clients = apiKey ? [new GoogleGenAI({ apiKey })]
+  : REGIONS.map((location) => new GoogleGenAI({ vertexai: true, project: "pitchmap-510208", location, googleAuthOptions: authClient ? { authClient } : undefined }));
 let next = 0;
 
 export async function image(contents: string | object[]): Promise<Buffer> {
