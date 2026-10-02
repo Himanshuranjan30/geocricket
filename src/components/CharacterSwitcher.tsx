@@ -4,6 +4,7 @@ import { Plus } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { legendOf } from "@/lib/legends";
+import { store } from "@/lib/client";
 import { publishMe, useMe } from "@/lib/useMe";
 import { track } from "./Analytics";
 import { Avatar } from "./Avatar";
@@ -27,9 +28,12 @@ export function CharacterSwitcher({ compact = false, label }: { compact?: boolea
   }, [me?.user]);
   if (!me?.profile) return null;
   const current = me.profile.avatar;
-  const wearing = legendOf(current);
-  const options = [...(me.customAvatar ? [{ code: me.customAvatar, label: "My player" }] : []), ...owned.map((l) => ({ code: `legend:${l.id}`, label: l.name })),
-    ...(wearing && !owned.some((l) => l.id === wearing.id) ? [{ code: current, label: wearing.name }] : [])];
+  // Your look, legends you bought, and the last few legends you've worn (so switching to a new one always leaves a
+  // one-tap way back). Remembered on this device.
+  const seen = [current, ...(store<string[]>("pm_worn") ?? [])].filter((c, i, a) => legendOf(c) && a.indexOf(c) === i).slice(0, 4);
+  if (typeof window !== "undefined" && seen.join() !== (store<string[]>("pm_worn") ?? []).join()) store("pm_worn", seen);
+  const codes = [...(me.customAvatar ? [me.customAvatar] : []), ...owned.map((l) => `legend:${l.id}`), ...seen].filter((c, i, a) => a.indexOf(c) === i);
+  const options = codes.map((code) => ({ code, label: legendOf(code)?.name ?? "My player" }));
   if (options.length < 2) return null; // nothing to switch between
 
   async function pick(code: string) {

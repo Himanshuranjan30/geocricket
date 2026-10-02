@@ -2,10 +2,12 @@
 
 import { Check, LockSimple, ShoppingCart, Star } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { priceFor, type Legend } from "@/lib/legends";
 import type { Profile } from "@/lib/profile";
 import { signInWithGoogle } from "@/lib/auth-client";
+import { fetchMe, publishMe } from "@/lib/useMe";
 import { track } from "./Analytics";
 import { AccountMenu } from "./AccountMenu";
 import { FirstOffer } from "./FirstOffer";
@@ -25,6 +27,7 @@ const MOODS: Mood[] = ["celebrate", "happy", "shocked", "nervous", "sad"];
 export function Locker() {
   const [data, setData] = useState<Data | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const router = useRouter();
   const [pick, setPick] = useState<Row | null>(null);
   const [mood, setMood] = useState<Mood>("celebrate");
   const [msg, setMsg] = useState<string | null>(null);
@@ -67,12 +70,19 @@ export function Locker() {
   }, []);
 
   const wearing = me?.profile?.avatar;
+  // Instant: the new legend is shown everywhere at once (shared /api/me cache) and you land on the home page wearing
+  // them, with them in the switcher; the save runs behind it and only a failure rolls it back.
   async function equip(l: Row) {
     if (!me?.profile) { setSetup(true); return; }
-    const res = await fetch("/api/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...me.profile, avatar: `legend:${l.id}` }) });
-    const d = await res.json();
-    if (!res.ok) { setMsg(d.error); return; }
-    setMe({ ...me, profile: d.profile }); setMsg(`You're now playing as ${l.name}.`); track("legend_equipped", { id: l.id });
+    const profile = { ...me.profile, avatar: `legend:${l.id}` };
+    if (l.full) new Image().src = `/legends/${l.id}/full.webp`; // so the home globe shows them with no blank frame
+    const shared = await fetchMe();
+    publishMe({ ...shared, profile });
+    setMe({ ...me, profile }); track("legend_equipped", { id: l.id });
+    const save = fetch("/api/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(profile) });
+    router.push(`/?legend=${l.id}`);
+    const res = await save.catch(() => null);
+    if (!res?.ok) { publishMe(shared); setMe(me); setMsg((await res?.json().catch(() => null))?.error ?? `Couldn't switch to ${l.name}. Try again.`); }
   }
   async function buy(l: Row) {
     if (!me?.profile) { setSetup(true); return; }
