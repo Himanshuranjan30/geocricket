@@ -316,3 +316,8 @@ a:hover > .mode-card, button:hover > .mode-card { transform: translateY(-2px); f
   .dash-figure.fig-render ~ .dash-edit, .dash-edit { top: auto; bottom: calc(env(safe-area-inset-bottom) + 16px + 76px + 10px + 60px + 10px); }
   .dash-switch:empty ~ .dash-edit, .dash-switch:not(:has([role=radiogroup])) ~ .dash-edit { bottom: calc(env(safe-area-inset-bottom) + 16px + 76px + 12px); }
 }
+/* Home figure moods never move the feet: the sad slump sinks in place (pivot at the feet) instead of sliding the whole
+   figure 5% down, which pushed the shoes into the globe and the buttons below. */
+@keyframes fig-slump { to { transform: scale(.97, .95); } }
+.fig-render.mood-sad { animation: fig-slump 1.2s ease-out forwards; transform-origin: 50% 100%; }
+.fig-render.mood-happy, .fig-render.mood-celebrate, .fig-render.mood-shocked, .fig-render.mood-nervous { transform-origin: 50% 100%; }
