@@ -32,13 +32,21 @@ export async function playerId(create = false) {
   if (user) {
     const [linked] = await db.select({ id: players.id }).from(players).where(eq(players.userId, user.id));
     let id = linked?.id;
+    // Signing in on a device where they played as a guest, to an account that already has a player (another device):
+    // the guest's progress moves into the account, once (the guest player is removed), and the cookie switches over.
+    if (id && cookieId && cookieId !== id) {
+      const [guest] = await db.select({ userId: players.userId }).from(players).where(eq(players.id, cookieId));
+      if (guest && !guest.userId) {
+        await mergeGuest(cookieId, id).catch((e) => console.error("guest merge", e));
+        try { jar.set(COOKIE, id, cookieOpts); jar.set("pm_merged", "1", { ...cookieOpts, maxAge: 120 }); } catch { /* read-only context (server component): the next API call switches it */ }
+      }
+    }
     if (!id && cookieId) {
       // First sign-in on this device: the guest player (profile, scores, streak) joins the account.
       const [guest] = await db.select({ id: players.id, userId: players.userId }).from(players).where(eq(players.id, cookieId));
       if (guest && !guest.userId) { await db.update(players).set({ userId: user.id }).where(eq(players.id, guest.id)); id = guest.id; }
     }
     if (!id && create) { id = crypto.randomUUID(); await db.insert(players).values({ id, userId: user.id }); }
-    // ponytail: a guest's plays from before signing in to an existing account stay on the guest player; merge them if players ask.
     if (id && create && id !== cookieId) jar.set(COOKIE, id, cookieOpts);
     return id ?? null;
   }
@@ -53,6 +61,53 @@ export async function playerId(create = false) {
   await db.insert(players).values({ id });
   jar.set(COOKIE, id, cookieOpts);
   return id;
+}
+
+// Every table holding a player's data, with the columns that make a row unique for them. A guest row moves into the
+// account unless the account already has that row; for per-day games the whole day moves or none of it (never a mix).
+const PER_PLAYER: [table: string, key: string[]][] = [
+  ["checks", ["question_id"]], ["seen", ["question_id"]], ["owned", ["item_id"]], ["cup_entrants", ["cup_id"]], ["cup_waitlist", ["cup_id"]],
+  ["duel_players", ["duel_id"]], ["duel_guesses", ["duel_id", "idx"]], ["who_buzzes", ["duel_id", "round", "clue"]], ["group_members", ["group_id"]],
+  ["league_members", ["week"]], ["feedback", []], ["notifications", []], ["orders", []], ["push_subs", []],
+];
+const PER_DAY: [days: string, tables: string[]][] = [["scores", ["guesses", "starts", "scores"]], ["who_results", ["who_guesses", "who_results"]]];
+
+/** Move a guest player's progress into a signed-in account's player, then delete the guest. Safe to re-run. */
+export async function mergeGuest(from: string, into: string) {
+  const db = await getDb();
+  const run = (q: string) => db.execute(sql.raw(q));
+  const f = `'${from.replace(/'/g, "")}'`, t = `'${into.replace(/'/g, "")}'`; // ids are server-made UUIDs; quoted defensively
+  for (const [days, tables] of PER_DAY) {
+    // A day (daily date, challenge "c:<slug>", edition key…) the account already has stays the account's. The list is
+    // taken before anything moves: moving one table first would make the guest's days look like the account's.
+    const had = await run(`select date from ${days} where player_id = ${t} union select date from ${tables[0]} where player_id = ${t}`);
+    const rows = ((had as unknown as { rows?: { date: string }[] }).rows ?? (had as unknown as { date: string }[])) as { date: string }[];
+    const keep = rows.length ? `and date not in (${rows.map((r) => `'${String(r.date).replace(/'/g, "''")}'`).join(",")})` : "";
+    for (const tb of tables) {
+      await run(`update ${tb} set player_id = ${t} where player_id = ${f} ${keep}`);
+      await run(`delete from ${tb} where player_id = ${f}`);
+    }
+  }
+  for (const [tb, key] of PER_PLAYER) {
+    const clash = key.length ? `and not exists (select 1 from ${tb} x where x.player_id = ${t} and ${key.map((k) => `x.${k} = ${tb}.${k}`).join(" and ")})` : "";
+    await run(`update ${tb} set player_id = ${t} where player_id = ${f} ${clash}`);
+    await run(`delete from ${tb} where player_id = ${f}`);
+  }
+  await run(`update duels set created_by = ${t} where created_by = ${f}`);
+  await run(`update groups set created_by = ${t} where created_by = ${f}`);
+  await run(`update cups set winner_id = ${t} where winner_id = ${f}`);
+  await run(`update who_challenges set host_player_id = ${t} where host_player_id = ${f}`);
+  // XP adds up; the account keeps its own profile, rating and age confirmation unless it never had one.
+  const [g] = await db.select().from(players).where(eq(players.id, from));
+  if (g) {
+    const [a] = await db.select().from(players).where(eq(players.id, into));
+    await db.update(players).set({
+      xp: sql`${players.xp} + ${g.xp}`,
+      ...(!a?.handle && g.handle ? { handle: g.handle, avatar: g.avatar, country: g.country } : {}),
+      ...(!a?.ageConfirmedMs && g.ageConfirmedMs ? { ageConfirmedMs: g.ageConfirmedMs } : {}),
+    }).where(eq(players.id, into));
+    await db.delete(players).where(eq(players.id, from));
+  }
 }
 
 export type Answer = { id: string; name: string; when: string; story: string; lat: number; lng: number; source: string };

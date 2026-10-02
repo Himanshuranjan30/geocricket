@@ -305,6 +305,7 @@ export function WhoDuel({ id }: { id: string }) {
 
       {setup && (
         <ProfileSetup initial={null} suggestedCountry={setup.suggestedCountry} user={setup.user} googleEnabled={setup.googleEnabled} onCancel={() => router.push("/mystery/duel")}
+          intro={opp ? `${opp.bot ? "A" : `@${opp.handle}`} challenged you to a Name Race` : "You've been challenged to a Name Race"}
           onDone={() => { setSetup(null); joined.current = false; poll(); }} />
       )}
     </main>

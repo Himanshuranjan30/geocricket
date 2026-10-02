@@ -10,6 +10,7 @@ import { track } from "./Analytics";
 import type { GlobeApi } from "./Globe";
 import { Mystery, PlayerFace } from "./PlayerFace";
 import { ClueCard, NameSearch, type WhoP } from "./WhoParts";
+import { SaveSpot } from "./SignInNudge";
 
 const Globe = dynamic(() => import("./Globe"), { ssr: false });
 
@@ -299,6 +300,7 @@ export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; s
                 </ol>
               </div>
             )}
+            {view.result && <SaveSpot title={ch?.title} onSaved={() => fetch(`/api/who${set ? `?set=${encodeURIComponent(set)}` : ""}`, { cache: "no-store" }).then((r) => r.json()).then((v) => v?.items && setView(v), () => {})} />}
             {ch?.isHost && <p className="text-sm text-muted">You set the score. Share the challenge so your followers can try to beat it.</p>}
             {rival && view.result && (
               <div className="rounded-2xl bg-white/5 p-3" aria-label="Head to head">

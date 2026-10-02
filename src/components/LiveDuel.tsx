@@ -10,6 +10,7 @@ import { buzz, setSoundOn, sfx, siteUrl, soundOn } from "@/lib/client";
 import { LIVE } from "@/lib/live";
 import { track } from "./Analytics";
 import { Avatar } from "./Avatar";
+import { ProfileSetup, type Account } from "./ProfileSetup";
 import { Flag } from "./Flag";
 import type { GlobeApi, LngLat } from "./Globe";
 
@@ -40,6 +41,7 @@ export function LiveDuel({ id }: { id: string }) {
   const shownRound = useRef<string>("");
   const joined = useRef(false);
   const [fx, setFx] = useState<{ kind: "hit" | "hurt" | "draw"; dmg: number; key: number } | null>(null);
+  const [setup, setSetup] = useState<{ suggestedCountry: string | null; user: Account; googleEnabled: boolean } | null>(null);
   const [muted, setMuted] = useState(() => typeof window !== "undefined" && !soundOn());
   const logRef = useRef<NonNullable<View["log"]>[number] | undefined>(undefined);
   useEffect(() => { if (!fx) return; const t = setTimeout(() => setFx(null), 1600); return () => clearTimeout(t); }, [fx]);
@@ -62,7 +64,11 @@ export function LiveDuel({ id }: { id: string }) {
   useEffect(() => {
     if (!v || joined.current || v.status !== "open" || v.players.some((p) => p.me)) return;
     joined.current = true;
-    fetch(`/api/live/${id}/join`, { method: "POST" }).then(poll);
+    // No player profile yet (a new visitor from an invite link): quick setup first, then take the seat.
+    fetch(`/api/live/${id}/join`, { method: "POST" }).then(async (res) => {
+      if (res.status === 403) setSetup(await fetch("/api/me", { cache: "no-store" }).then((x) => x.json()));
+      else { track("live_joined"); poll(); }
+    });
   }, [v, id, poll]);
 
   const serverNow = clock + skew;
@@ -276,6 +282,11 @@ export function LiveDuel({ id }: { id: string }) {
 
       {v?.error && (
         <div className="absolute inset-0 grid place-items-center px-4"><div className="glass rounded-3xl p-5 text-center"><p className="mb-4">{v.error}</p><Link href="/live" className="btn-primary px-6 py-3">New duel</Link></div></div>
+      )}
+      {setup && (
+        <ProfileSetup initial={null} suggestedCountry={setup.suggestedCountry} user={setup.user} googleEnabled={setup.googleEnabled}
+          intro={opp ? `@${opp.handle} invited you to a live 1v1` : "You've been invited to a live 1v1"}
+          onCancel={() => router.push("/live")} onDone={() => { setSetup(null); joined.current = false; poll(); }} />
       )}
     </main>
   );

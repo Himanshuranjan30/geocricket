@@ -27,7 +27,7 @@ export function AccountMenu({ onEdit, compact = false }: { onEdit?: () => void; 
   }, [open]);
   if (!me) return <span className="h-10 w-10" aria-hidden />;
   const guest = !me.user;
-  const signIn = () => signInWithGoogle(`${window.location.pathname}?welcome=1`);
+  const signIn = () => signInWithGoogle();
   const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold !text-cream !no-underline hover:bg-white/10";
 
   return (

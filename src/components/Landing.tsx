@@ -64,8 +64,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
       const q = new URLSearchParams(window.location.search);
       if (m.user && !m.onboarded) setSetup("onboard");
       else if (q.has("legend")) setToast(`${legendOf(`legend:${q.get("legend")}`)?.name ?? "Your legend"} is ready. Every ball you bowl, they react.`);
-      else if (m.user && q.has("welcome")) setToast("Signed in. Your scores, streak and XP are saved to your account.");
-      if (q.has("welcome") || q.has("setup") || q.has("legend")) window.history.replaceState(null, "", "/");
+      if (q.has("setup") || q.has("legend")) window.history.replaceState(null, "", "/"); // ?welcome is handled by AuthLayer
     });
     fetch("/api/round", { cache: "no-store" }).then((r) => r.json()).then((r) => setDone(r.progress?.length ?? 0), () => {});
     fetch("/api/editions", { cache: "no-store" }).then((r) => r.json()).then((d) => setEds(d.editions ?? []), () => setEds([]));

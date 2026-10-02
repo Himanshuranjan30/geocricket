@@ -21,9 +21,10 @@ const handleFrom = (name?: string) => (name ?? "").replace(/[^A-Za-z0-9_]/g, "")
  * guest: handle optional (a random guest handle is assigned), with what signing in unlocks.
  * onboard: first run after sign-up (step 1 of 2), marks the player onboarded. inline: renders as a page section (settings).
  */
-export function ProfileSetup({ initial, suggestedCountry, user, googleEnabled, onDone, onCancel, onboard = false, inline = false }: {
+export function ProfileSetup({ initial, suggestedCountry, user, googleEnabled, onDone, onCancel, onboard = false, inline = false, intro }: {
   initial: Profile | null; suggestedCountry: string | null; user: Account; googleEnabled: boolean;
   onDone: (p: Profile) => void; onCancel?: () => void; onboard?: boolean; inline?: boolean;
+  intro?: string; // why they're here, for people arriving from a link: "@friend invited you to a live 1v1"
 }) {
   const guest = !user;
   useEffect(() => {
@@ -40,16 +41,19 @@ export function ProfileSetup({ initial, suggestedCountry, user, googleEnabled, o
   const [country, setCountry] = useState(initial?.country ?? (suggestedCountry && COUNTRIES.includes(suggestedCountry) ? suggestedCountry : "IN"));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [adult, setAdult] = useState(false); // first-time setup only: GeoCricket is 18+
+  const [adult, setAdult] = useState(false);
+  // 18+ is confirmed when an account is set up (and again before any purchase, server-side). Guests play first, like
+  // the guest who's auto-created on /play, so an invite link never opens on a form they must tick to try the game.
+  const askAge = !initial && !guest;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const p = { avatar, handle: handle.trim(), country };
     const invalid = guest && !p.handle ? null : validateProfile(p);
     if (invalid) return setError(invalid);
-    if (!initial && !adult) return setError("GeoCricket is for players aged 18 and over. Tick the box to confirm.");
+    if (askAge && !adult) return setError("GeoCricket is for players aged 18 and over. Tick the box to confirm.");
     setSaving(true); setError(null);
-    if (!initial) await fetch("/api/me/age", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ adult: true }) }).catch(() => {});
+    if (askAge) await fetch("/api/me/age", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ adult: true }) }).catch(() => {});
     const res = await fetch("/api/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...p, onboarded: onboard || undefined }) });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
@@ -68,6 +72,7 @@ export function ProfileSetup({ initial, suggestedCountry, user, googleEnabled, o
         <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-1">
         {!inline && (
           <div>
+            {intro && <p className="mb-3 rounded-xl bg-[#F5C000]/15 px-3 py-2 text-sm font-semibold text-[#F5C000]">{intro}</p>}
             <p className="display text-[13px] font-semibold tracking-[.16em] text-muted">{onboard ? "Step 1 of 2 · Create your player" : initial ? "Edit character" : guest ? "Quick setup" : "Before the first ball"}</p>
             <h2 className="display mt-1 text-[34px] font-extrabold leading-none">{onboard ? "Welcome to the crease" : "Walk out to bat"}</h2>
             <p className="mt-2 text-sm text-muted">{onboard ? "Your progress is saved. Pick your look, handle and flag. You can change them any time in Settings." : guest ? "Pick your look and start playing. No account needed." : "Your avatar, handle and flag appear on the leaderboards."}</p>
@@ -76,14 +81,14 @@ export function ProfileSetup({ initial, suggestedCountry, user, googleEnabled, o
 
         {googleEnabled && guest && !inline && (
           <div className="flex flex-col gap-2 rounded-2xl bg-white/5 p-3">
-            <button type="button" onClick={() => signInWithGoogle("/?welcome=1")}
+            <button type="button" onClick={() => signInWithGoogle()}
               className="flex items-center justify-center gap-2.5 rounded-xl bg-white py-3 font-semibold text-[#1F1F1F]">
               <GoogleMark /> Continue with Google
             </button>
             <ul className="grid grid-cols-3 gap-1 text-center text-[11px] leading-tight text-muted">
               <li>🏆 Get on the leaderboards</li><li>🔥 Keep your streak on any device</li><li>👑 Unlock legends</li>
             </ul>
-            <p className="text-center text-xs text-muted">Or set up below and play as a guest. Your scores stay on this device.</p>
+            <p className="text-center text-xs text-muted">Or set up below and play as a guest. Your scores stay on this device. By playing you agree to the <a href="/terms" target="_blank" className="underline">terms</a> (18+).</p>
           </div>
         )}
         {user && <p className="rounded-xl bg-panel-2 px-3 py-2 text-sm">Signed in as <b>{user.email}</b></p>}
@@ -127,7 +132,7 @@ export function ProfileSetup({ initial, suggestedCountry, user, googleEnabled, o
           <Flag code={country} size={20} />
         </div>
 
-        {!initial && (
+        {askAge && (
           <label className="flex items-start gap-2.5 text-sm leading-snug">
             <input type="checkbox" required checked={adult} onChange={(e) => setAdult(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#46C27A]" />
             <span>I&apos;m 18 or older and agree to the <a href="/terms" target="_blank" className="text-ok underline">terms</a> and <a href="/privacy" target="_blank" className="text-ok underline">privacy policy</a>.</span>

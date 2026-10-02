@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDb, schema } from "@/db";
 import { levelOf } from "@/lib/level";
@@ -18,12 +18,15 @@ export async function GET() {
   const db = await getDb();
   const [row] = pid ? await db.select({ xp: schema.players.xp, onboardedMs: schema.players.onboardedMs, customAvatar: schema.players.customAvatar }).from(schema.players).where(eq(schema.players.id, pid)) : [];
   const suggested = (await headers()).get("x-vercel-ip-country");
+  const jar = await cookies();
+  const merged = jar.get("pm_merged")?.value === "1"; // set by playerId() when a guest's progress just joined the account
+  if (merged) jar.delete("pm_merged");
   // Days with any finished scored game, for the streak and its calendar (lib/streak.ts).
   const today = istDate();
   const [played, saved] = pid ? await Promise.all([playedDays(pid), savedDays(pid)]) : [[], []];
   const s = streakOf(played, today, saved);
   return NextResponse.json({
-    profile,
+    profile, merged,
     // Analytics user id (GA4 user_id): a keyed hash, so the player id itself never leaves the server.
     aid: pid ? createHmac("sha256", process.env.BETTER_AUTH_SECRET ?? "geocricket").update(pid).digest("hex").slice(0, 24) : null,
     level: levelOf(row?.xp ?? 0),

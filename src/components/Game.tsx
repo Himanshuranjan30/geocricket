@@ -48,6 +48,9 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
   const [sound, setSound] = useState(() => typeof window !== "undefined" && soundOn());
   const [me, setMe] = useState<Me | null>(null);
   const [setup, setSetup] = useState(false);
+  // First round ever, or arriving from a friend's score link: an arrival card (your player, what this is, the score to
+  // beat) and nothing starts, the shot clock included, until they tap Play.
+  const [arrival, setArrival] = useState(false);
   // Opened from a friend's shared result (/c/<score> → /play?c=<score>): show the score to beat.
   const [beat] = useState<number | null>(() => { if (typeof window === "undefined") return null; const c = Number(new URLSearchParams(window.location.search).get("c")); return Number.isFinite(c) && c > 0 ? Math.min(1000, c) : null; });
   const api = useRef<GlobeApi | null>(null);
@@ -90,9 +93,10 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
         if (m?.user) { setSetup(true); return; }
         const guest = { handle: "", avatar: avatarCode(encodeLook(randomLook()), "india"), country: m?.suggestedCountry ?? "IN" };
         fetch("/api/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(guest) })
-          .then((x) => x.json()).then((d) => { setMe({ ...m!, profile: d.profile }); begin(r, done.length); }, () => setSetup(true));
+          .then((x) => x.json()).then((d) => { setMe({ ...m!, profile: d.profile }); if (done.length) begin(r, done.length); else { setArrival(true); track("arrival_shown", { via: beat != null ? "score_link" : "first_round" }); } }, () => setSetup(true));
         return;
       }
+      if (beat != null && !done.length) { setArrival(true); track("arrival_shown", { via: "score_link" }); return; }
       begin(r, done.length);
     }, (e) => { setError(e.message); setPhase("error"); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -399,11 +403,32 @@ export function Game({ mode, date, editionKey, duelId }: { mode: Mode; date?: st
 
       {setup && me && (
         <ProfileSetup initial={me.profile} suggestedCountry={me.suggestedCountry} user={me.user} googleEnabled={me.googleEnabled}
-          onCancel={() => router.push("/")}
-          onDone={(profile) => { setMe({ ...me, profile }); setSetup(false); track("profile_saved", { country: profile.country }); if (round) begin(round, results.length); }} />
+          onCancel={() => (arrival ? setSetup(false) : router.push("/"))}
+          onDone={(profile) => { setMe({ ...me, profile }); setSetup(false); track("profile_saved", { country: profile.country }); if (round && !arrival) begin(round, results.length); }} />
       )}
 
-      {phase === "loading" && !setup && (
+      {arrival && round && me?.profile && !setup && (
+        <div className="tv-ui absolute inset-x-0 bottom-0 z-30 mx-auto max-w-[520px] px-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+          <div className="glass flex flex-col items-center gap-3 rounded-3xl p-5 text-center">
+            {beat != null ? <>
+              <p className="display text-xs tracking-[.18em] text-[#F5C000]">A FRIEND CHALLENGED YOU</p>
+              <p className="display text-3xl leading-tight">They scored {beat}/1000.<br />Can you beat it?</p>
+            </> : <>
+              <p className="display text-xs tracking-[.18em] text-[#F5C000]">TODAY&apos;S DAILY</p>
+              <p className="display text-3xl leading-tight">5 famous cricket moments.<br />Pin each one on the globe.</p>
+            </>}
+            <p className="text-sm text-muted">Closer pins score more. You get {QUESTION_SECONDS} seconds a ball, and the clock only starts when you tap Play.</p>
+            <div className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-3 text-left">
+              <Avatar code={me.profile.avatar} size={56} />
+              <span className="min-w-0 flex-1"><span className="block text-xs text-muted">Batting as</span><b className="block truncate">@{me.profile.handle}</b></span>
+              <button onClick={() => { setSetup(true); track("arrival_change_player"); }} className="btn-ghost shrink-0 px-3 py-2 text-sm font-semibold">Change</button>
+            </div>
+            <button onClick={() => { setArrival(false); track("arrival_play"); begin(round, results.length); }} className="btn-primary w-full py-4 text-2xl">Play</button>
+          </div>
+        </div>
+      )}
+
+      {phase === "loading" && !setup && !arrival && (
         <div className="absolute inset-0 grid place-items-center"><div className="display animate-pulse text-xl text-muted">Walking out to bat…</div></div>
       )}
 

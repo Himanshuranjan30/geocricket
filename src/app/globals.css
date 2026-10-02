@@ -301,3 +301,5 @@ a:hover > .mode-card, button:hover > .mode-card { transform: translateY(-2px); f
 .face-pop { animation: facePop .55s cubic-bezier(.3,1.6,.5,1) both; }
 @keyframes facePop { from { transform: scale(.4) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mystery, .face-pop { animation: none; } }
+/* The character figure is decoration: its shadow and body never take taps meant for buttons beside or below it. */
+.fig-shadow, .fig-body, .fig-head, .fig-bat { pointer-events: none; }

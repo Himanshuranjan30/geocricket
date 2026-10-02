@@ -79,7 +79,7 @@ export function Locker() {
     setMsg(null);
     const res = await fetch("/api/pay/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: l.id }) });
     const o = await res.json();
-    if (res.status === 401 && o.signIn) { signInWithGoogle(`/locker?pick=${l.id}`); return; }
+    if (res.status === 401 && o.signIn) { signInWithGoogle(`/locker?pick=${l.id}&welcome=1`); return; }
     if (res.status === 403 && o.needAge) {
       // Accounts made before the 18+ check: ask once, record it, then carry on to checkout.
       if (!window.confirm("Legends are for players aged 18 and over. Are you 18 or older?")) { setMsg(o.error); return; }

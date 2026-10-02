@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Rubik } from "next/font/google";
 import { preconnect, preload, preloadModule } from "react-dom";
 import { Analytics } from "@/components/Analytics";
+import { AuthLayer } from "@/components/AuthLayer";
 import "./globals.css";
 
 // One chunky rounded family: regular for text, heavy italic for game headings.
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           { "@context": "https://schema.org", "@type": "WebSite", name: "GeoCricket", alternateName: ["Geo Cricket", "GeoCricket game"], url: `${site}/` }, // Google's site name
         ]).replace(/</g, "\\u003c") }} />
         <Analytics />
+        <AuthLayer />
         {adsense && (
           <>
             {/* Plain async tag (AdSense flags next/script's data-nscript). Test ads outside production so our own traffic never counts.
