@@ -44,7 +44,7 @@ function tone(freq: number, dur: number, type: OscillatorType = "sine", vol = 0.
 export function sfx(name: "tick" | "go" | "lock" | "hit" | "hurt" | "win" | "lose" | "draw" | "click" | "whoosh" | "thud") {
   if (!soundOn()) return;
   try {
-    if (name === "click") { tone(1250, 0.04, "triangle", 0.12, 0, 900); tone(2100, 0.025, "sine", 0.05, 0.012); }
+    if (name === "click") tack();
     else if (name === "whoosh") whoosh();
     else if (name === "thud") { tone(150, 0.22, "sine", 0.35, 0, 60); tone(90, 0.18, "triangle", 0.15, 0.02, 50); }
     else if (name === "tick") tone(880, 0.08, "square", 0.08);
@@ -67,14 +67,25 @@ function whoosh() {
   g.gain.value = 0.5; src.buffer = buf; src.connect(bp).connect(g).connect(a.destination); src.start();
 }
 
-/** One soft click for every button, link and toggle in the app (a single listener, installed once). */
+/** The standard game-button "tack": a ~20 ms bright noise tick with a hint of body, sharp attack, no tone. */
+function tack() {
+  const a = ctx(), len = Math.round(a.sampleRate * 0.02), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 10) + Math.sin(i / a.sampleRate * 2 * Math.PI * 1400) * Math.pow(1 - i / len, 4) * 0.35;
+  const src = a.createBufferSource(), hp = a.createBiquadFilter(), g = a.createGain();
+  hp.type = "highpass"; hp.frequency.value = 1100; g.gain.value = 0.55;
+  src.buffer = buf; src.connect(hp).connect(g).connect(a.destination); src.start();
+}
+
+/** One tack for every button, link and toggle in the app (a single listener, installed once). */
 export function installClickSound() {
-  const on = (e: MouseEvent) => {
+  // Mouse: on press, so it's instant. Touch: on the tap itself, so scrolling past a card never ticks.
+  const on = (e: PointerEvent | MouseEvent) => {
+    if ((e.type === "pointerdown") !== ((e as PointerEvent).pointerType === "mouse") || (e.type === "pointerdown" && e.button !== 0)) return;
     const t = (e.target as Element | null)?.closest?.("button, a[href], [role=button], [role=tab], [role=option], summary, select, input[type=checkbox], input[type=radio]");
     if (t && !t.matches(":disabled, [aria-disabled=true]")) sfx("click");
   };
-  addEventListener("click", on, true);
-  return () => removeEventListener("click", on, true);
+  addEventListener("pointerdown", on, true); addEventListener("click", on, true);
+  return () => { removeEventListener("pointerdown", on, true); removeEventListener("click", on, true); };
 }
 
 /** Short synthesized bat-crack. Only plays after a user gesture and when sound is on. */
