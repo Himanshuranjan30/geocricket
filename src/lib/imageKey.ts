@@ -28,6 +28,8 @@ export async function keyed(buf: Buffer, trim = true) {
     if (x > 0) stack.push(k - 1); if (x < w - 1) stack.push(k + 1);
     if (y > 0) stack.push(k - w); if (y < h - 1) stack.push(k + w);
   }
+  // Magenta screen (used for green kits): drop its spill the same way.
+  if (bg[0] > 180 && bg[2] > 180 && bg[1] < 90) { unMagenta(data); const img = sharp(data, { raw: info }); return (trim ? img.trim() : img).resize(600, 1000, { fit: "contain", position: "bottom", background: { r: 0, g: 0, b: 0, alpha: 0 } }).webp({ quality: 90 }).toBuffer(); }
   // Green left in enclosed gaps (between the legs, inside the grille): the character itself has no bright green.
   for (let p = 0; p < data.length; p += 4) {
     const spill = data[p + 1] - Math.max(data[p], data[p + 2]);
@@ -51,3 +53,12 @@ export async function cleanShadow(input: Buffer | string) {
   return sharp(data, { raw: info }).webp({ quality: 90 }).toBuffer();
 }
 
+
+/** Remove pink fringe left by a magenta screen: strong magenta → transparent, a pink cast → neutralised. */
+export function unMagenta(data: Buffer | Uint8Array) {
+  for (let p = 0; p < data.length; p += 4) {
+    const spill = Math.min(data[p], data[p + 2]) - data[p + 1];
+    if (spill > 90) data[p + 3] = 0;
+    else if (spill > 30) { const m = data[p + 1] + 20; data[p] = Math.min(data[p], m); data[p + 2] = Math.min(data[p + 2], m); }
+  }
+}

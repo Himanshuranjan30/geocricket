@@ -4,6 +4,7 @@
 
 import WITH_ART from "../content/legend-art.json";
 import WITH_FULL from "../content/legend-full.json";
+import WITH_FULL_MOODS from "../content/legend-full-moods.json";
 
 export type Hair = "short" | "curly" | "long" | "ponytail" | "bun" | "spiky" | "undercut" | "balding" | "wavy" | "buzz";
 export type Facial = "none" | "stubble" | "beard" | "moustache" | "goatee";
@@ -13,7 +14,7 @@ export type Kit = { shirt: string; trim: string };
 export type Legend = {
   id: string; name: string; country: string; role: string; number: number; signature: string;
   skin: string; hair: Hair; hairColor: string; facial: Facial; headwear: Headwear; headwearColor?: string; glasses?: boolean;
-  kit: Kit; level: number; art?: boolean; full?: boolean;
+  kit: Kit; level: number; art?: boolean; full?: boolean; fullMoods?: boolean; // fullMoods: full-body art per mood (full-<mood>.webp)
 };
 
 const KITS = {
@@ -96,7 +97,8 @@ export const LEGENDS: Legend[] = [
 // Legends with generated art in public/legends/<id>/ (written by scripts/legend-art.mts).
 const arted = new Set<string>(WITH_ART);
 const fulls = new Set<string>(WITH_FULL);
-for (const l of LEGENDS) { if (arted.has(l.id)) l.art = true; if (fulls.has(l.id)) l.full = true; }
+const fullMoods = new Set<string>(WITH_FULL_MOODS);
+for (const l of LEGENDS) { if (arted.has(l.id)) l.art = true; if (fulls.has(l.id)) l.full = true; if (fullMoods.has(l.id)) l.fullMoods = true; }
 
 /** One price for every legend: set as localized pricing on the Dodo product. */
 export const PRICE = { IN: "₹49", other: "$0.99" };

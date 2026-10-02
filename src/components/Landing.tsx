@@ -28,6 +28,7 @@ import { CharacterSwitcher } from "./CharacterSwitcher";
 import { FirstOffer } from "./FirstOffer";
 import { Logo } from "./Logo";
 import { PlayerFigure } from "./PlayerFigure";
+import type { Mood } from "./Toon";
 import { ProfileSetup } from "./ProfileSetup";
 import { Floodlights, Ticker } from "./Stadium";
 
@@ -44,6 +45,15 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
   const [me, setMe] = useMe();
   const [done, setDone] = useState(0);
   const [pulse, setPulse] = useState<Pulse | null>(null);
+  // The home character isn't a statue: it runs through the same moods as in the Locker (face + motion), with a calm
+  // beat between each. CSS turns the motion off for reduced-motion users.
+  const [mood, setMood] = useState<Mood>("idle");
+  useEffect(() => {
+    const seq: Mood[] = ["happy", "idle", "celebrate", "idle", "shocked", "idle", "nervous", "idle", "sad", "idle"];
+    let i = 0;
+    const t = setInterval(() => { setMood(seq[i % seq.length]); i++; }, 2600);
+    return () => clearInterval(t);
+  }, []);
   const [eds, setEds] = useState<Edition[] | null>(null); // null until loaded: slots are assumed scheduled meanwhile
   const [prog, setProg] = useState<Record<string, number>>({}); // balls played in each open timed slot
   const [now, setNow] = useState(() => Date.now()); // ticks every minute so the countdowns move
@@ -170,7 +180,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
           <img src="/globe-poster.webp" alt="" aria-hidden fetchPriority="high" className={`dash-poster ${painted ? "gone" : ""}`} />
           <Globe onTap={() => {}} onReady={onReady} onPainted={onPainted} />
         </div>
-        <PlayerFigure code={me?.profile?.avatar ?? "pitchmap-india"} className="dash-figure" />
+        <PlayerFigure code={me?.profile?.avatar ?? "pitchmap-india"} className="dash-figure" mood={mood} />
         <div className="dash-switch"><CharacterSwitcher /></div>
         <button onClick={() => (me?.profile ? setSetup("edit") : setSetup("play"))} className="dash-edit display flex items-center gap-1.5 rounded-full bg-[#6B4CE6] px-5 py-2 text-sm shadow-[0_4px_0_#3E2A9A,0_10px_30px_rgba(0,0,0,.4)] hover:brightness-110">
           <PencilSimple weight="bold" size={14} />{me?.profile ? "Edit avatar" : "Create player"}
