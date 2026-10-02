@@ -67,17 +67,17 @@ function whoosh() {
   g.gain.value = 0.5; src.buffer = buf; src.connect(bp).connect(g).connect(a.destination); src.start();
 }
 
-/** The standard game-button "tack": a ~20 ms bright noise tick with a hint of body, sharp attack, no tone. */
+/** The button click (public/sfx/click.mp3), decoded once and played from memory so it's instant. */
+let clickBuf: Promise<AudioBuffer | null> | null = null;
 function tack() {
-  const a = ctx(), len = Math.round(a.sampleRate * 0.02), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 10) + Math.sin(i / a.sampleRate * 2 * Math.PI * 1400) * Math.pow(1 - i / len, 4) * 0.35;
-  const src = a.createBufferSource(), hp = a.createBiquadFilter(), g = a.createGain();
-  hp.type = "highpass"; hp.frequency.value = 1100; g.gain.value = 0.55;
-  src.buffer = buf; src.connect(hp).connect(g).connect(a.destination); src.start();
+  const a = ctx();
+  clickBuf ??= fetch("/sfx/click.mp3").then((r) => r.arrayBuffer()).then((b) => a.decodeAudioData(b)).catch(() => null);
+  void clickBuf.then((buf) => { if (!buf) return; const src = a.createBufferSource(); src.buffer = buf; src.connect(a.destination); src.start(); });
 }
 
 /** One tack for every button, link and toggle in the app (a single listener, installed once). */
 export function installClickSound() {
+  void fetch("/sfx/click.mp3").catch(() => {}); // warm the cache so the first click is instant too
   // Mouse: on press, so it's instant. Touch: on the tap itself, so scrolling past a card never ticks.
   const on = (e: PointerEvent | MouseEvent) => {
     if ((e.type === "pointerdown") !== ((e as PointerEvent).pointerType === "mouse") || (e.type === "pointerdown" && e.button !== 0)) return;
