@@ -145,6 +145,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         sub={!league || league.guest ? "Sign in, earn XP, move up a tier" : league.joined ? `#${league.members.find((m) => m.me)?.rank ?? "–"} of ${league.members.length} · ends in ${untilLabel(league.endsMs, now)}` : "Earn XP in any game to join this week"}
         art={<Ranking weight="duotone" />} />
       <ModeCard href="/mystery/duel" title="Name Race 1v1" badge="Mystery Cricketer live" art={<Sword weight="duotone" />} hot />
+      <ModeCard href="/mystery/host" title="Host a challenge" badge="Pick cricketers, dare your friends" art={<Crown weight="duotone" />} tag={{ text: "New", kind: "live" }} />
       <ModeCard href="/live" title="Live 1v1" badge="Quick match" art={<Lightning weight="duotone" />} hot />
       <ModeCard href="/cups" title="Cups" badge="Knockout tournaments" sub="Host one, invite friends, lift the trophy" art={<Trophy weight="duotone" />} hot
         tag={{ text: `Daily Cup · ${timeAt(dailyCupMs, country).replace(/ IST$/, "")}`, kind: now < dailyCupMs ? "soon" : "live" }} />
