@@ -114,5 +114,5 @@ describe("simulation: 10,000 random cups", () => {
         if (r > 0) expect(fixtures).toHaveLength(s.rounds[r - 1].length / 2);
       }
     }
-  });
+  }, 20_000); // 10,000 cups: ~5 s on a busy laptop, over vitest's 5 s default
 });
