@@ -72,7 +72,8 @@ export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; s
         return;
       }
       fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).then((m) => setStreak(m?.streak ?? null), () => {});
-      fetch("/api/boards?board=who&period=day&limit=5", { cache: "no-store" }).then((r) => r.json()).then((b) => setTop(b?.top ?? null), () => {});
+      fetch("/api/leaderboard", { cache: "no-store" }).then((r) => r.json()) // the one board: all of today's challenges
+        .then((b) => setTop((b?.top ?? []).slice(0, 5).map((r: { rank: number; handle: string; total: number; me: boolean }) => ({ rank: r.rank, handle: r.handle, value: r.total, me: r.me }))), () => {});
     }, 900);
     return () => clearTimeout(t);
   }, [finished, set]);
@@ -276,7 +277,7 @@ export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; s
             {!ch && view.result?.betterThan != null && <p className="text-sm text-muted">Better than {view.result.betterThan}% of players today</p>}
             {!ch && top && top.length > 0 && (
               <div className="rounded-2xl bg-white/5 p-3 text-left">
-                <p className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-[.14em] text-muted"><Trophy weight="fill" className="text-[#F5C000]" />Today&apos;s top</p>
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-[.14em] text-muted"><Trophy weight="fill" className="text-[#F5C000]" />Today&apos;s leaderboard</p>
                 <ol className="flex flex-col gap-1 text-sm">
                   {top.map((t) => (
                     <li key={t.rank} className={`flex justify-between gap-2 rounded-lg px-2 py-1 ${t.me ? "bg-[#F5C000]/15 font-semibold" : ""}`}>
@@ -284,7 +285,7 @@ export function WhoGame({ date, vs, set, host }: { date?: string; vs?: string; s
                     </li>
                   ))}
                 </ol>
-                <Link href="/leaderboard" className="mt-1.5 block text-xs text-muted underline">All leaderboards</Link>
+                <Link href="/leaderboard" className="mt-1.5 block text-xs text-muted underline">Full leaderboard</Link>
               </div>
             )}
             {ch && ch.top.length > 0 && (

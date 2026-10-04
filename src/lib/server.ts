@@ -1,13 +1,13 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, like, lte, sql, notLike } from "drizzle-orm";
+import { and, count, desc, eq, inArray, like, lte, sql, notLike } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { getAuth } from "./auth";
 import { getDb, schema } from "@/db";
 import { xpAfter } from "./level";
-import { dailyOpen, isSuspicious, MULTIPLIERS, istDate, periodRange, type Period } from "./game";
+import { addDays, dailyOpen, dayEndMs, isSuspicious, MULTIPLIERS, istDate, periodRange, type Period } from "./game";
 import { istDayOf, streakOf } from "./streak";
 
-const { questions, rounds, players, scores } = schema;
+const { questions, rounds, players, scores, whoResults } = schema;
 const COOKIE = "pm_pid";
 
 const cookieOpts = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 730, path: "/" };
@@ -270,29 +270,46 @@ export async function getProfile(pid: string) {
   return p?.handle && p.avatar && p.country ? { handle: p.handle, avatar: p.avatar, country: p.country } : null;
 }
 
-// Higher score first; on a tie, whoever finished first (sum of finish times across the period's days), then closer guesses.
+// Higher score first; on a tie, whoever finished their last challenge first, then closer guesses.
 type Ranked = { total: number; km: number; doneMs: number };
 const better = (a: Ranked, b: Ranked) => b.total - a.total || a.doneMs - b.doneMs || a.km - b.km;
 
-/** Player board (top 50 + your row) and country board for a day, week (Mon–Sun) or month. Longer periods sum each player's daily scores. */
+// The challenges the whole public plays on a day: the four scheduled games (lib/schedule.ts) plus Mystery Cricketer.
+const dayKeys = (d: string) => [d, `test-am-${d}`, `evening-${d}`, `test-${d}`];
+
+/**
+ * The one leaderboard: each player's points from every public challenge of the day (Daily, Morning Test, Evening Daily,
+ * Evening Test, Mystery Cricketer), played live. 1v1s, cups, Nets and private group games never count, and replaying a
+ * past day from the archive doesn't change that day's board. Top 50 + your row, plus countries; week/month sum the days.
+ */
 export async function leaderboard(date: string, me: string | null, period: Period = "day", onlyPlayers?: Set<string>) {
   const db = await getDb();
   const [start, end] = periodRange(date, period);
+  const days: string[] = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) days.push(d);
   // ponytail: aggregates the whole period in memory; fine behind a short cache, move to SQL GROUP BY / a rollup table at ~100K players/day.
-  const rows = await db
-    .select({ playerId: scores.playerId, total: scores.total, km: scores.kmTotal, doneAt: scores.createdAt, flagged: scores.flagged, handle: players.handle, avatar: players.avatar, country: players.country, userId: players.userId })
-    .from(scores)
-    .leftJoin(players, eq(players.id, scores.playerId))
-    .where(and(gte(scores.date, start), lte(scores.date, end)));
+  const [scoreRows, whoRows] = await Promise.all([
+    db.select({ playerId: scores.playerId, total: scores.total, km: scores.kmTotal, doneAt: scores.createdAt, flagged: scores.flagged, key: scores.date })
+      .from(scores).where(inArray(scores.date, days.flatMap(dayKeys))),
+    db.select({ playerId: whoResults.playerId, total: whoResults.total, doneAt: whoResults.createdAt, key: whoResults.date })
+      .from(whoResults).where(inArray(whoResults.date, days)),
+  ]);
+  const live = (r: { key: string; doneAt: Date }) => r.doneAt.getTime() <= dayEndMs(r.key.slice(-10));
+  const plays = [...scoreRows.filter(live), ...whoRows.filter(live).map((r) => ({ ...r, km: 0, flagged: false }))];
+  const pids = [...new Set(plays.map((r) => r.playerId))];
+  const info = new Map((pids.length ? await db.select({ id: players.id, handle: players.handle, avatar: players.avatar, country: players.country, userId: players.userId })
+    .from(players).where(inArray(players.id, pids)) : []).map((p) => [p.id, p]));
+  type Row = { playerId: string; total: number; km: number; doneMs: number; handle: string | null; avatar: string | null; country: string | null; userId: string | null; dayset: Set<string>; days: number };
   // Flagged scores (see isSuspicious) only count on the player's own view, so cheaters don't notice and nobody else sees them.
-  const byPlayer = new Map<string, (typeof rows)[number] & { days: number; doneMs: number }>();
-  for (const r of rows) {
+  const byPlayer = new Map<string, Row>();
+  for (const r of plays) {
+    const who = info.get(r.playerId);
     if (r.flagged && r.playerId !== me) continue;
-    if (!r.userId && r.playerId !== me) continue; // guests aren't ranked (they see where they would be)
+    if (!who?.userId && r.playerId !== me) continue; // guests aren't ranked (they see where they would be)
     if (onlyPlayers && !onlyPlayers.has(r.playerId)) continue;
-    const p = byPlayer.get(r.playerId), doneMs = r.doneAt.getTime();
-    if (p) { p.total += r.total; p.km += r.km; p.doneMs += doneMs; p.days += 1; }
-    else byPlayer.set(r.playerId, { ...r, doneMs, days: 1 });
+    const p = byPlayer.get(r.playerId) ?? { playerId: r.playerId, total: 0, km: 0, doneMs: 0, handle: who?.handle ?? null, avatar: who?.avatar ?? null, country: who?.country ?? null, userId: who?.userId ?? null, dayset: new Set<string>(), days: 0 };
+    p.total += r.total; p.km += r.km; p.doneMs = Math.max(p.doneMs, r.doneAt.getTime()); p.dayset.add(r.key.slice(-10)); p.days = p.dayset.size;
+    byPlayer.set(r.playerId, p);
   }
   const everyone = [...byPlayer.values()].sort(better);
   const guestMe = everyone.find((r) => r.playerId === me && !r.userId) ?? null;

@@ -206,7 +206,7 @@ export function Results({ profile, mode, number, date, title, duelId, questionId
 
         <Link href="/" className="btn-ghost flex items-center justify-center gap-2 py-3 text-base !text-cream !no-underline"><House weight="fill" size={18} />Back to home · today&apos;s games</Link>
 
-        {(ranked || mode === "archive") && <LeaderboardPanel date={date} refreshKey={board ? 1 : 0} fixed={mode !== "daily"} title={mode === "archive" ? "Who played it live" : undefined} />}
+        {(ranked || mode === "archive") && <LeaderboardPanel date={date} refreshKey={board ? 1 : 0} title={mode === "archive" ? "Who played it live" : undefined} />}
 
         <AdSlot slot={process.env.NEXT_PUBLIC_AD_SLOT_RESULTS} />
 

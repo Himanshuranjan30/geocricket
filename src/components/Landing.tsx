@@ -17,7 +17,7 @@ import { offerReward } from "@/lib/ads";
 import { legendOf } from "@/lib/legends";
 import { timeAt, untilLabel } from "@/lib/resetTime";
 import { AccountMenu } from "./AccountMenu";
-import { Boards } from "./Boards";
+import { LeaderboardPanel } from "./LeaderboardPanel";
 import { WhoCard } from "./WhoCard";
 import { AdSlot } from "./AdSlot";
 import { MobileNav } from "./MobileNav";
@@ -244,10 +244,10 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
 
       {/* Desktop columns. On phones the same cards follow the hero. */}
       <aside className="tv-ui absolute bottom-20 left-6 top-[84px] z-10 hidden w-[250px] overflow-y-auto pb-[72px] [mask-image:linear-gradient(to_bottom,#000_calc(100%-56px),transparent)] [scrollbar-width:none] lg:block"><div className="flex flex-col gap-3">{today4}{more}</div></aside>
-      <div className="tv-ui absolute bottom-24 right-6 top-36 z-10 hidden w-[340px] overflow-y-auto [scrollbar-width:none] lg:block"><Boards /><AdSlot slot={process.env.NEXT_PUBLIC_AD_SLOT_HUBS} className="mt-3" /></div>
+      <div className="tv-ui absolute bottom-24 right-6 top-36 z-10 hidden w-[340px] overflow-y-auto [scrollbar-width:none] lg:block"><LeaderboardPanel /><AdSlot slot={process.env.NEXT_PUBLIC_AD_SLOT_HUBS} className="mt-3" /></div>
       <div className="relative z-10 flex flex-col gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] lg:hidden">
         <div id="modes" className="scroll-mt-4">{today4}</div>
-        <div id="boards" className="scroll-mt-4"><Boards /></div>
+        <div id="boards" className="scroll-mt-4"><LeaderboardPanel /></div>
         <AdSlot slot={process.env.NEXT_PUBLIC_AD_SLOT_HUBS} />
         {more}
       </div>
