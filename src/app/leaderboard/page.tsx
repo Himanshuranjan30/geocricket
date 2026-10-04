@@ -5,6 +5,7 @@ import { Page } from "@/components/Page";
 import { addDays, CHALLENGES, challengeHref, challengeOpensMs, dayEndMs, DAY_MAX, istDate, type ChallengeId } from "@/lib/game";
 import { ChallengeChips } from "@/components/ChallengeChips";
 import { leaderboard, playerId } from "@/lib/server";
+import { prizeState } from "@/lib/prize";
 import { Flag } from "@/components/Flag";
 import { Rank } from "@/components/Rank";
 
@@ -19,13 +20,20 @@ export default async function Leaderboard({ searchParams }: PageProps<"/leaderbo
   const today = istDate();
   const sp = await searchParams;
   const date = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) && sp.date <= today ? sp.date : today;
-  const lb = await leaderboard(date, await playerId());
+  const pid = await playerId();
+  const [lb, prize] = await Promise.all([leaderboard(date, pid), prizeState(pid)]);
+  const won = prize.mine.find((m) => m.status === "unclaimed");
   const href = (d: string) => (d === today ? "/leaderboard" : `/leaderboard?date=${d}`);
   const now = requestTime(), isToday = date === today;
   const mins = Math.max(0, Math.round((dayEndMs(today) - now) / 60e3)), left = `${Math.floor(mins / 60)}h ${mins % 60}m`;
 
   return (
     <Page title={date === today ? "Today's leaderboard" : `Leaderboard · ${fmt(date)}`} eyebrow="One board · every public challenge of the day">
+      {won && <Link href="/prize" className="display rounded-2xl border border-[#F5C000] bg-[#F5C000]/15 px-4 py-3 text-center !text-[#F5C000] !no-underline">🏆 You won ₹{prize.amount}! Claim it with your UPI ID →</Link>}
+      <Link href="/prize" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#F5C000]/40 bg-[#F5C000]/10 px-4 py-3 !no-underline">
+        <span className="display !text-[#F5C000]">🏆 #1 at midnight wins ₹{prize.amount}</span>
+        <span className="text-xs text-[#E4E1FA]">{prize.last ? <>Last winner: <b>@{prize.last.handle}</b> · </> : null}Free to play · Rules →</span>
+      </Link>
       <p className="text-sm text-muted">Everyone plays the same five challenges each day. Your points from all of them add up here.</p>
       <ul className="grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-5">
         {CHALLENGES.map((c) => (

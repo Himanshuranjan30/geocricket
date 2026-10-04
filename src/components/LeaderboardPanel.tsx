@@ -16,6 +16,8 @@ const EMPTY = { count: 0, people: 0, top: [], me: null } as Board;
 
 export function LeaderboardPanel({ date, refreshKey = 0, className = "", title }: { date?: string; refreshKey?: number; className?: string; title?: string }) {
   const [board, setBoard] = useState<Board | null>(null);
+  const [prize, setPrize] = useState<{ amount: number; last: { handle: string | null } | null; mine: { status: string }[] } | null>(null);
+  useEffect(() => { if (!date) fetch("/api/prize", { cache: "no-store" }).then((r) => r.json()).then(setPrize, () => {}); }, [date]);
 
   useEffect(() => {
     // Any failure shows an empty board rather than breaking the page it sits on (the results screen, the home page).
@@ -31,6 +33,11 @@ export function LeaderboardPanel({ date, refreshKey = 0, className = "", title }
         {board && (board.people ?? 0) > 0 && <span className="text-xs text-muted">{board.people} played{date ? "" : " today"}</span>}
       </div>
       <p className="-mt-2 text-[11px] text-muted">Points from all five of the day&apos;s challenges</p>
+      {prize && (prize.mine.some((m) => m.status === "unclaimed")
+        ? <Link href="/prize" className="display rounded-xl bg-[#F5C000] px-3 py-2 text-center text-sm !text-deep !no-underline">🏆 You won ₹{prize.amount}! Claim it →</Link>
+        : <Link href="/prize" className="rounded-xl border border-[#F5C000]/40 bg-[#F5C000]/10 px-3 py-2 text-center text-xs !text-[#F5C000] !no-underline">
+            🏆 <b>#1 at midnight wins ₹{prize.amount}</b>{prize.last?.handle ? <> · last winner @{prize.last.handle}</> : null}
+          </Link>)}
       {!board ? (
         <p className="py-6 text-center text-sm text-muted">Loading…</p>
       ) : board.top.length === 0 ? <p className="py-4 text-center text-sm text-muted">No scores yet today. Be the first on the board.</p> : (

@@ -366,6 +366,23 @@ export const feedback = pgTable(
   (t) => [index("feedback_status").on(t.status, t.createdMs)],
 );
 
+// Daily ₹100 prize (scripts/migrations/2026-10-04-prizes.sql, lib/prize.ts): #1 on each closed day's leaderboard.
+// player_id null = nobody was ranked that day. The winner claims with a UPI ID; an admin pays by hand and marks it paid.
+export const prizes = pgTable(
+  "prizes",
+  {
+    day: text("day").primaryKey(), // "YYYY-MM-DD" (IST)
+    playerId: text("player_id"),
+    handle: text("handle"),
+    points: integer("points").notNull().default(0),
+    upi: text("upi"),
+    claimedMs: bigint("claimed_ms", { mode: "number" }),
+    paidMs: bigint("paid_ms", { mode: "number" }),
+    createdMs: bigint("created_ms", { mode: "number" }).notNull(),
+  },
+  (t) => [index("prizes_player").on(t.playerId)],
+);
+
 // "Who's the Player?" daily (scripts/migrations/2026-10-01-who.sql). Puzzles and the schedule live in src/content/who.json.
 // One row per guess or skip: `step` is the clue the player was on (0-4), so a retry of the same tap can't count twice.
 export const whoGuesses = pgTable(
