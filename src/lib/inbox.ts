@@ -40,7 +40,7 @@ async function daily(pid: string, signedIn: boolean, country: string | null) {
   const istHour = new Date(Date.now() + 5.5 * 3600e3).getUTCHours();
   if (s.atRisk && s.current >= 2 && istHour >= 17) await notify(pid, { key: `streak-${today}`, kind: "streak", title: `🔥 Your ${s.current}-day streak ends at midnight`, body: "Finish any game today to keep it alive.", url: "/play" });
   const r = await recap(pid, yday);
-  if (r) await notify(pid, r.note(signedIn));
+  if (r) await notify(pid, r.note());
   const o = await offerFor(pid, signedIn);
   if (o.eligible && o.active && o.endsMs) await notify(pid, { key: "offer-first", kind: "offer", title: "🎁 Your first legend, half price", body: "One time only, for 72 hours.", url: "/locker" });
 }
@@ -52,22 +52,22 @@ export function gamesLine(country: string | null) {
 }
 
 /**
- * How a player did in a day's Daily (their rank, or where a guest would have ranked), as a bell note. Top-10 finishes
+ * How a signed-in player did on a day's leaderboard (guests aren't on it), as a bell note. Top-10 finishes
  * with 25+ players keep their "rank-" key: the podium and top-10 badges count those (lib/career.ts).
  */
 export async function recap(pid: string, day: string) {
   const board = await leaderboard(day, pid, "day");
   const me = board.me;
   if (!me) return null;
-  const top10 = board.count >= 25 && !me.guest && me.rank <= 10;
+  const top10 = board.count >= 25 && me.rank <= 10;
   const of = board.count > 1 ? ` of ${board.count.toLocaleString("en-IN")}` : "";
   return {
     me, count: board.count,
-    note: (signedIn: boolean): Note => top10
-      ? { key: `rank-${day}`, kind: "rank", title: `🏆 You finished #${me.rank} yesterday`, body: me.countryRank ? `Your country is #${me.countryRank} on the country board.` : "Top 10 in the world. Keep it going.", url: "/leaderboard" }
+    note: (): Note => top10
+      ? { key: `rank-${day}`, kind: "rank", title: `🏆 You finished #${me.rank} yesterday`, body: "Top 10 in the world. Keep it going.", url: "/leaderboard" }
       : { key: `recap-${day}`, kind: "rank", url: "/leaderboard",
-        title: me.guest || !signedIn ? `📊 Yesterday you'd have been #${me.rank}${of}` : `📊 Yesterday you finished #${me.rank}${of}`,
-        body: `${board.count > 1 && me.percentile > 0 ? `Better than ${me.percentile}% of players. ` : ""}${me.guest || !signedIn ? "Sign in to get on the board. " : ""}Today's Daily is open.` },
+        title: `📊 Yesterday you finished #${me.rank}${of}`,
+        body: `${board.count > 1 && me.percentile > 0 ? `Better than ${me.percentile}% of players. ` : ""}Today's Daily is open.` },
   };
 }
 

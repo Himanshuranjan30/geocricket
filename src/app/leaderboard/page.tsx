@@ -29,11 +29,12 @@ export default async function Leaderboard({ searchParams }: PageProps<"/leaderbo
 
   return (
     <Page title={date === today ? "Today's leaderboard" : `Leaderboard · ${fmt(date)}`} eyebrow="One board · every public challenge of the day">
-      {won && <Link href="/prize" className="display rounded-2xl border border-[#F5C000] bg-[#F5C000]/15 px-4 py-3 text-center !text-[#F5C000] !no-underline">🏆 You won ₹{prize.amount}! Claim your prize →</Link>}
+      {won && <Link href="/prize" className="display rounded-2xl border border-[#F5C000] bg-[#F5C000]/15 px-4 py-3 text-center !text-[#F5C000] !no-underline">🏆 You won {won.label}! Claim your prize →</Link>}
       <Link href="/prize" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#F5C000]/40 bg-[#F5C000]/10 px-4 py-3 !no-underline">
-        <span className="display !text-[#F5C000]">🏆 #1 at midnight wins ₹{prize.amount}</span>
+        <span className="display !text-[#F5C000]">🏆 #1 at midnight wins {prize.label}</span>
         <span className="text-xs text-[#E4E1FA]">{prize.last ? <>Last winner: <b>@{prize.last.handle}</b> · </> : null}Free to play · Rules →</span>
       </Link>
+      {!prize.signedIn && <Link href="/settings" className="display rounded-2xl bg-ok px-4 py-3 text-center !text-deep !no-underline">Sign in to get on the board and play for {prize.label} →</Link>}
       <p className="text-sm text-muted">Everyone plays the same five challenges each day. Your points from all of them add up here.</p>
       <ul className="grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-5">
         {CHALLENGES.map((c) => (
@@ -50,8 +51,7 @@ export default async function Leaderboard({ searchParams }: PageProps<"/leaderbo
       {isToday && <YourDay games={lb.me?.games ?? {}} day={today} now={now} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">
-          {lb.people.toLocaleString("en-IN")} {lb.people === 1 ? "person" : "people"} played{isToday ? " today" : ""} · <b className="text-cream">{lb.count}</b> on the board
-          {lb.people > lb.count ? <> (<Link href="/settings">sign in</Link> to appear)</> : null}
+          <b className="text-cream">{lb.count}</b> {lb.count === 1 ? "player" : "players"} on the board{isToday ? " today" : ""}
         </p>
         <div className="flex gap-3 text-sm">
           <Link href={href(addDays(date, -1))}>← Previous day</Link>
@@ -63,7 +63,7 @@ export default async function Leaderboard({ searchParams }: PageProps<"/leaderbo
         <ol className="flex flex-col gap-1.5">{lb.top.map((r) => <PlayerRow key={r.rank} r={r} />)}</ol>
       )}
       <p className="text-sm text-muted">
-        Signed-in players only (guests see where they would be). 1v1s, cups, Nets and private group games don&apos;t count, and replaying a
+        Signed-in players only: guests don&apos;t appear on the board and can&apos;t win. 1v1s, cups, Nets and private group games don&apos;t count, and replaying a
         past day doesn&apos;t change its board. Ties go to whoever finished their last challenge first, then to the closer total distance.
       </p>
     </Page>

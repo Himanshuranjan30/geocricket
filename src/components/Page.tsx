@@ -22,7 +22,7 @@ export function Page({ title, eyebrow, children }: { title: string; eyebrow?: st
         </div>
         <footer className="border-t border-line pt-4 text-xs leading-normal text-[#8B84C9]">
           <nav className="mb-2 flex flex-wrap gap-4">
-            <Link href="/nets">Nets</Link><Link href="/cups">Cups</Link><Link href="/grounds">Grounds</Link><Link href="/players">Players</Link><Link href="/moments">Moments</Link><Link href="/archive">Archive</Link><Link href="/leaderboard">Leaderboard</Link><Link href="/prize">Win ₹100</Link>
+            <Link href="/nets">Nets</Link><Link href="/cups">Cups</Link><Link href="/grounds">Grounds</Link><Link href="/players">Players</Link><Link href="/moments">Moments</Link><Link href="/archive">Archive</Link><Link href="/leaderboard">Leaderboard</Link><Link href="/prize">Daily prize</Link>
             <Link href="/how-it-works">How it works</Link><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds</Link><Link href="/feedback">Feedback</Link>
           </nav>
           GeoCricket is not affiliated with BCCI, IPL, ICC or any team. Map borders follow the Survey of India depiction. Map data © OpenStreetMap contributors, © OpenMapTiles; imagery Sentinel-2 cloudless by EOX (<a href="/about">credits</a>).

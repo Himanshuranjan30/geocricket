@@ -296,7 +296,6 @@ export async function leaderboard(date: string, me: string | null, period: Perio
   ]);
   const live = (r: { key: string; doneAt: Date }) => r.doneAt.getTime() <= dayEndMs(r.key.slice(-10));
   const plays = [...scoreRows.filter(live).map((r) => ({ ...r, id: challengeOfKey(r.key) })), ...whoRows.filter(live).map((r) => ({ ...r, km: 0, flagged: false, id: "mystery" as const }))];
-  const people = new Set(plays.filter((r) => !r.flagged).map((r) => r.playerId)).size; // everyone who played, guests included
   const pids = [...new Set(plays.map((r) => r.playerId))];
   const info = new Map((pids.length ? await db.select({ id: players.id, handle: players.handle, avatar: players.avatar, country: players.country, userId: players.userId })
     .from(players).where(inArray(players.id, pids)) : []).map((p) => [p.id, p]));
@@ -306,16 +305,14 @@ export async function leaderboard(date: string, me: string | null, period: Perio
   for (const r of plays) {
     const who = info.get(r.playerId);
     if (r.flagged && r.playerId !== me) continue;
-    if (!who?.userId && r.playerId !== me) continue; // guests aren't ranked (they see where they would be)
+    if (!who?.userId) continue; // signed-in players only: guests never appear on the board, not even to themselves
     if (onlyPlayers && !onlyPlayers.has(r.playerId)) continue;
     const p = byPlayer.get(r.playerId) ?? { playerId: r.playerId, total: 0, km: 0, doneMs: 0, handle: who?.handle ?? null, avatar: who?.avatar ?? null, country: who?.country ?? null, userId: who?.userId ?? null, dayset: new Set<string>(), days: 0, games: {} };
     if (r.id) p.games[r.id] = (p.games[r.id] ?? 0) + r.total;
     p.total += r.total; p.km += r.km; p.doneMs = Math.max(p.doneMs, r.doneAt.getTime()); p.dayset.add(r.key.slice(-10)); p.days = p.dayset.size;
     byPlayer.set(r.playerId, p);
   }
-  const everyone = [...byPlayer.values()].sort(better);
-  const guestMe = everyone.find((r) => r.playerId === me && !r.userId) ?? null;
-  const all = everyone.filter((r) => r.userId);
+  const all = [...byPlayer.values()].sort(better);
 
   const count = all.length;
   const avg = count ? Math.round(all.reduce((s, r) => s + r.total, 0) / count) : 0;
@@ -335,16 +332,15 @@ export async function leaderboard(date: string, me: string | null, period: Perio
     .sort((a, b) => b.avg - a.avg || b.players - a.players)
     .map((c, i) => ({ rank: i + 1, ...c }));
 
-  const myIdx = guestMe ? all.filter((r) => better(r, guestMe) < 0).length : me ? all.findIndex((r) => r.playerId === me) : -1;
-  const mine = guestMe ?? (myIdx >= 0 ? all[myIdx] : null);
+  const myIdx = me ? all.findIndex((r) => r.playerId === me) : -1;
+  const mine = myIdx >= 0 ? all[myIdx] : null;
   const below = mine ? all.filter((r) => r.total < mine.total).length : 0;
   return {
-    date, period, start, end, count, avg, people,
+    date, period, start, end, count, avg,
     top: all.slice(0, 50).map(row),
     countries,
     me: mine ? {
       ...row(mine, myIdx),
-      guest: !!guestMe, // not on the board: rank is where they'd be if signed in
       percentile: count > 1 ? Math.round((below / (count - 1)) * 100) : 100,
       countryRank: countries.find((c) => c.country === mine.country)?.rank ?? null,
     } : null,

@@ -376,6 +376,8 @@ export const prizes = pgTable(
     playerId: text("player_id"),
     handle: text("handle"),
     points: integer("points").notNull().default(0),
+    currency: text("currency").notNull().default("INR"), // the winner's currency at settlement (lib/currency.ts)
+    amount: real("amount").notNull().default(100), // ₹100 converted at that day's rate (lib/fx.ts)
     method: text("method"), // upi | paypal | amazon (scripts/migrations/2026-10-04-prize-payout.sql)
     payTo: text("pay_to"), // UPI ID, PayPal email, or "email · Amazon store"
     claimedMs: bigint("claimed_ms", { mode: "number" }),

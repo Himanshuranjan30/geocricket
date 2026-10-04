@@ -64,7 +64,7 @@ export const morningBrief = () => runJob(`brief-${istDate()}`, async () => {
     if (!p) continue;
     const r = await recap(pid, yday).catch(() => null);
     if (!r && !active.has(pid)) continue; // lapsed players don't get a push every morning
-    const note = r ? r.note(!!p.userId) : { key: `games-${today}`, kind: "games", title: "🏏 Today's Daily is open", body: gamesLine(p.country), url: "/play?from=push" };
+    const note = r ? r.note() : { key: `games-${today}`, kind: "games", title: "🏏 Today's Daily is open", body: gamesLine(p.country), url: "/play?from=push" };
     if (await notify(pid, note, true)) sent++;
   }
   return { sent };

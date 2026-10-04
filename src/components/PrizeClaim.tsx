@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type State = { amount: number; country: string | null; stores: string[]; last: { day: string; handle: string | null; points: number } | null; mine: { day: string; points: number; status: "unclaimed" | "claimed" | "paid" }[] };
+type State = { label: string; country: string | null; stores: string[]; last: { day: string; handle: string | null; points: number; label: string } | null; mine: { day: string; points: number; label: string; status: "unclaimed" | "claimed" | "paid" }[] };
 type Method = "upi" | "paypal" | "amazon";
 const METHODS: { id: Method; label: string; hint: string; placeholder: string }[] = [
   { id: "upi", label: "UPI (India)", hint: "Your UPI ID", placeholder: "yourname@okaxis" },
@@ -37,7 +37,7 @@ export function PrizeClaim() {
     <div className="flex flex-col gap-3">
       {open.map((m) => (
         <section key={m.day} className="rounded-2xl border border-[#F5C000]/50 bg-[#F5C000]/10 p-4">
-          <p className="display text-lg">🏆 You won ₹{s.amount} on {dayLabel(m.day)}!</p>
+          <p className="display text-lg">🏆 You won {m.label} on {dayLabel(m.day)}!</p>
           <p className="text-sm text-muted">You topped the leaderboard with {m.points.toLocaleString("en-IN")} points. How should we pay you?</p>
           <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Payout method">
             {METHODS.map((x) => (
@@ -53,16 +53,16 @@ export function PrizeClaim() {
                 {s.stores.map((x) => <option key={x} value={x}>Amazon {x}</option>)}
               </select>
             )}
-            <button className="display rounded-full bg-[#F5C000] px-5 py-2 text-deep">Claim ₹{s.amount}</button>
+            <button className="display rounded-full bg-[#F5C000] px-5 py-2 text-deep">Claim {m.label}</button>
           </form>
-          <p className="mt-1 text-xs text-muted">{info.hint}. {info.id === "upi" ? "" : `Outside India we send the equivalent of ₹${s.amount} in your currency.`}</p>
+          <p className="mt-1 text-xs text-muted">{info.hint}. Paid in your currency: {m.label}.</p>
         </section>
       ))}
       {msg && <p className="text-sm text-ok">{msg}</p>}
       {s.mine.filter((m) => m.status !== "unclaimed").map((m) => (
-        <p key={m.day} className="text-sm text-muted">{dayLabel(m.day)}: ₹{s.amount} {m.status === "paid" ? <b className="text-ok">paid ✓</b> : "claimed · paying within 48 hours"}</p>
+        <p key={m.day} className="text-sm text-muted">{dayLabel(m.day)}: {m.label} {m.status === "paid" ? <b className="text-ok">paid ✓</b> : "claimed · paying within 48 hours"}</p>
       ))}
-      {!open.length && s.last && <p className="text-sm">Latest winner: <b className="text-[#F5C000]">@{s.last.handle}</b> with {s.last.points.toLocaleString("en-IN")} points on {dayLabel(s.last.day)}.</p>}
+      {!open.length && s.last && <p className="text-sm">Latest winner: <b className="text-[#F5C000]">@{s.last.handle}</b> won {s.last.label} with {s.last.points.toLocaleString("en-IN")} points on {dayLabel(s.last.day)}.</p>}
       {!open.length && <Link href="/leaderboard" className="display text-ok">See today&apos;s leaderboard →</Link>}
     </div>
   );

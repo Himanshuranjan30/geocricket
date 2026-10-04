@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { money } from "@/lib/currency";
 
-type Item = { day: string; handle: string | null; points: number; method: string | null; payTo: string | null; claimedMs: number | null; paidMs: number | null; email: string | null; country: string | null };
+type Item = { day: string; handle: string | null; points: number; currency: string; amount: number; method: string | null; payTo: string | null; claimedMs: number | null; paidMs: number | null; email: string | null; country: string | null };
 const HOW: Record<string, string> = { upi: "UPI", paypal: "PayPal", amazon: "Amazon gift card" };
 
-/** Admin payouts for /prize: send ₹100 (or the local equivalent) by the winner's chosen method, then mark it paid. */
+/** Admin payouts for /prize: send the amount shown (₹100 or its value in the winner's currency) by their chosen method, then mark it paid. */
 export function PrizeAdmin() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export function PrizeAdmin() {
           <div className="flex flex-col text-sm">
             <b className="display">{i.day}</b>
             {i.handle ? <span>@{i.handle}{i.country ? ` (${i.country})` : ""} · {i.points.toLocaleString("en-IN")} pts{i.email ? ` · ${i.email}` : ""}</span> : <span className="text-muted">No ranked players: no winner</span>}
+            {i.handle && <span>Pay <b className="text-[#F5C000]">{money(i.amount, i.currency)}</b> ({i.currency})</span>}
             {i.handle && <span className="text-muted">{i.payTo ? <>{HOW[i.method ?? ""] ?? i.method}: <code className="text-cream">{i.payTo}</code></> : "Not claimed yet"}</span>}
           </div>
           {i.handle && (i.paidMs
