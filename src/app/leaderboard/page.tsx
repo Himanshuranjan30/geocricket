@@ -29,7 +29,7 @@ export default async function Leaderboard({ searchParams }: PageProps<"/leaderbo
 
   return (
     <Page title={date === today ? "Today's leaderboard" : `Leaderboard · ${fmt(date)}`} eyebrow="One board · every public challenge of the day">
-      {won && <Link href="/prize" className="display rounded-2xl border border-[#F5C000] bg-[#F5C000]/15 px-4 py-3 text-center !text-[#F5C000] !no-underline">🏆 You won ₹{prize.amount}! Claim it with your UPI ID →</Link>}
+      {won && <Link href="/prize" className="display rounded-2xl border border-[#F5C000] bg-[#F5C000]/15 px-4 py-3 text-center !text-[#F5C000] !no-underline">🏆 You won ₹{prize.amount}! Claim your prize →</Link>}
       <Link href="/prize" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#F5C000]/40 bg-[#F5C000]/10 px-4 py-3 !no-underline">
         <span className="display !text-[#F5C000]">🏆 #1 at midnight wins ₹{prize.amount}</span>
         <span className="text-xs text-[#E4E1FA]">{prize.last ? <>Last winner: <b>@{prize.last.handle}</b> · </> : null}Free to play · Rules →</span>

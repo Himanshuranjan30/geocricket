@@ -367,7 +367,8 @@ export const feedback = pgTable(
 );
 
 // Daily ₹100 prize (scripts/migrations/2026-10-04-prizes.sql, lib/prize.ts): #1 on each closed day's leaderboard.
-// player_id null = nobody was ranked that day. The winner claims with a UPI ID; an admin pays by hand and marks it paid.
+// player_id null = nobody was ranked that day. The winner picks a payout (UPI, PayPal or an Amazon gift card, for players
+// outside India) and where to send it; an admin pays by hand and marks it paid.
 export const prizes = pgTable(
   "prizes",
   {
@@ -375,7 +376,8 @@ export const prizes = pgTable(
     playerId: text("player_id"),
     handle: text("handle"),
     points: integer("points").notNull().default(0),
-    upi: text("upi"),
+    method: text("method"), // upi | paypal | amazon (scripts/migrations/2026-10-04-prize-payout.sql)
+    payTo: text("pay_to"), // UPI ID, PayPal email, or "email · Amazon store"
     claimedMs: bigint("claimed_ms", { mode: "number" }),
     paidMs: bigint("paid_ms", { mode: "number" }),
     createdMs: bigint("created_ms", { mode: "number" }).notNull(),
