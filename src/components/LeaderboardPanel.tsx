@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { Avatar } from "./Avatar";
 import { Flag } from "./Flag";
 import { Rank } from "./Rank";
+import { ChallengeChips } from "./ChallengeChips";
+import type { ChallengeId } from "@/lib/game";
 
-type Row = { rank: number; handle: string; avatar: string; country: string | null; total: number; me: boolean };
-type Board = { count: number; top: Row[]; me: (Row & { guest?: boolean }) | null };
+type Row = { rank: number; handle: string; avatar: string; country: string | null; total: number; me: boolean; games?: Partial<Record<ChallengeId, number>> };
+type Board = { count: number; people?: number; top: Row[]; me: (Row & { guest?: boolean }) | null };
 
 /** The one leaderboard (lib/server leaderboard): today's points from every public challenge. Shown to everyone, no sign-in needed. */
-const EMPTY = { count: 0, top: [], me: null } as Board;
+const EMPTY = { count: 0, people: 0, top: [], me: null } as Board;
 
 export function LeaderboardPanel({ date, refreshKey = 0, className = "", title }: { date?: string; refreshKey?: number; className?: string; title?: string }) {
   const [board, setBoard] = useState<Board | null>(null);
@@ -26,9 +28,9 @@ export function LeaderboardPanel({ date, refreshKey = 0, className = "", title }
     <section className={`glass flex flex-col gap-3 rounded-3xl p-4 ${className}`}>
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="display text-lg">{title ?? (date ? "Leaderboard" : "Today's leaderboard")}</h3>
-        {board && board.count > 0 && <span className="text-xs text-muted">{board.count} {board.count === 1 ? "player" : "players"}</span>}
+        {board && (board.people ?? 0) > 0 && <span className="text-xs text-muted">{board.people} played{date ? "" : " today"}</span>}
       </div>
-      <p className="-mt-2 text-[11px] text-muted">Points from all of the day&apos;s challenges</p>
+      <p className="-mt-2 text-[11px] text-muted">Points from all five of the day&apos;s challenges</p>
       {!board ? (
         <p className="py-6 text-center text-sm text-muted">Loading…</p>
       ) : board.top.length === 0 ? <p className="py-4 text-center text-sm text-muted">No scores yet today. Be the first on the board.</p> : (
@@ -48,7 +50,10 @@ function PlayerLine({ r }: { r: Row }) {
     <li className={`grid grid-cols-[26px_auto_1fr_auto] items-center gap-2 rounded-xl px-2 py-1.5 text-sm ${r.me ? "bg-white/15" : ""}`}>
       <Rank n={r.rank} />
       <Avatar code={r.avatar} size={28} />
-      <span className="flex min-w-0 items-center gap-1.5"><span className="truncate font-medium">@{r.handle}</span><Flag code={r.country} size={12} /></span>
+      <span className="flex min-w-0 flex-col">
+        <span className="flex min-w-0 items-center gap-1.5"><span className="truncate font-medium">@{r.handle}</span><Flag code={r.country} size={12} /></span>
+        <ChallengeChips games={r.games} size="xs" />
+      </span>
       <b className="display">{r.total}</b>
     </li>
   );

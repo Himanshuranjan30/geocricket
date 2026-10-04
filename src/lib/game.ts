@@ -51,6 +51,30 @@ export const dropMs = (day: string, game: Game2) => slotMs(day, game, game === "
 /** The last instant of a day in India. */
 export const dayEndMs = (day: string) => Date.parse(`${day}T23:59:59.999+05:30`);
 
+/**
+ * The five public challenges of a day: the only things that count on the leaderboard (lib/server leaderboard).
+ * max = points available (5 balls × MULTIPLIERS, 10 balls × TEST_MULTS in content/pool.ts, 3 Mystery players × 100).
+ */
+export const CHALLENGES = [
+  { id: "daily", short: "D", name: "Daily", max: 1000, opens: "00:00" },
+  { id: "mtest", short: "MT", name: "Morning Test", max: 1900, opens: "08:00" },
+  { id: "evening", short: "ED", name: "Evening Daily", max: 1000, opens: "18:00" },
+  { id: "etest", short: "ET", name: "Evening Test", max: 1900, opens: "20:00" },
+  { id: "mystery", short: "M", name: "Mystery Cricketer", max: 300, opens: "00:00" },
+] as const;
+export type ChallengeId = (typeof CHALLENGES)[number]["id"];
+export const DAY_MAX = CHALLENGES.reduce((s, c) => s + c.max, 0);
+/** Which challenge a scores.date round key is ("2026-10-04", "test-am-…", "evening-…", "test-…"); null for anything else. */
+export const challengeOfKey = (key: string): ChallengeId | null =>
+  /^\d{4}-\d{2}-\d{2}$/.test(key) ? "daily" : key.startsWith("test-am-") ? "mtest" : key.startsWith("evening-") ? "evening" : key.startsWith("test-") ? "etest" : null;
+/** Where to play a challenge on a day, and when it opens (epoch ms). */
+export const challengeHref = (id: ChallengeId, day: string) =>
+  id === "daily" ? "/" : id === "mystery" ? "/mystery" : `/test/${id === "mtest" ? `test-am-${day}` : id === "evening" ? `evening-${day}` : `test-${day}`}`;
+export const challengeOpensMs = (id: ChallengeId, day: string) => {
+  const c = CHALLENGES.find((x) => x.id === id)!; const [h, m] = c.opens.split(":").map(Number);
+  return dayStartMs(day) + (h * 60 + m) * 60e3;
+};
+
 /** Today's date in India. */
 /** Rough cricket region of a pin, for spreading a round's questions around the world. */
 export function zoneOf(lat: number, lng: number) {

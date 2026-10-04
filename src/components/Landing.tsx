@@ -108,7 +108,10 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
     for (const key of openKeys ? openKeys.split(",") : [])
       fetch(`/api/round?key=${key}`, { cache: "no-store" }).then((r) => r.json()).then((r) => setProg((p) => ({ ...p, [key]: r.progress?.length ?? 0 })), () => {});
   }, [openKeys]);
-  const played = slots.filter((x) => x.finished).length;
+  // Mystery Cricketer is the day's fifth public challenge (the leaderboard counts all five).
+  const [mysteryDone, setMysteryDone] = useState(false);
+  useEffect(() => { fetch("/api/who", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((v) => setMysteryDone(!!v?.finished), () => {}); }, []);
+  const played = slots.filter((x) => x.finished).length + (mysteryDone ? 1 : 0);
   const dailyCupMs = Date.parse(`${today}T21:30:00+05:30`); // official Daily Cup (DAILY_CUP_HOUR_IST in lib/cups.ts)
   const upcoming = slots.filter((x) => x.opensMs > now).sort((x, y) => x.opensMs - y.opensMs)[0];
   const tomorrow = addDays(today, 1), nextAt = upcoming?.opensMs ?? slotMs(tomorrow, "daily", "am");
@@ -126,7 +129,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
       <StreakCard streak={me?.streak ?? 0} played={me?.played ?? []} frozen={me?.frozen ?? []} atRisk={!!me?.streakAtRisk} />
       <StreakSaver streak={me?.saveStreak ?? 0} />
       <div className="flex flex-col gap-0.5 rounded-2xl bg-white/5 px-4 py-2.5 ring-1 ring-white/10" aria-live="polite">
-        <span className="display text-sm">Today <span className={played === 4 ? "text-ok" : "text-[#F5C000]"}>{played}/4</span> games played</span>
+        <span className="display text-sm">Today <span className={played === 5 ? "text-ok" : "text-[#F5C000]"}>{played}/5</span> challenges played</span>
         <span className="text-[11px] text-[#CFC8F5]" suppressHydrationWarning>Next: <b className="text-cream" suppressHydrationWarning>{nextName}</b> at {timeAt(nextAt, country)} · in {untilLabel(nextAt, now)}</span>
       </div>
       {(["daily", "test"] as const).map((game) => {

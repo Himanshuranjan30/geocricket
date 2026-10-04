@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dailyOpen, spreadPick, zoneOf, dayEndMs, dayStartMs, distanceKm, dropMs, greatCircle, istDate, nextDrops, pointsFor, slotMs, testDay, testWindow, tierOf, weekOf } from "./game";
+import { TEST_MULTS } from "../content/pool";
+import { addDays, CHALLENGES, challengeOfKey, dailyOpen, DAY_MAX, MULTIPLIERS, SLOT_MINUTES_IST, spreadPick, zoneOf, dayEndMs, dayStartMs, distanceKm, dropMs, greatCircle, istDate, nextDrops, pointsFor, slotMs, testDay, testWindow, tierOf, weekOf } from "./game";
 
 describe("game logic", () => {
   it("measures distance: Mumbai to Durban is ~7,030 km", () => {
@@ -113,5 +114,25 @@ describe("round spread", () => {
     const ranked = [at("mumbai", 18.9, 72.8), at("delhi", 28.6, 77.2), at("chennai", 13.1, 80.3), at("lords", 51.5, -0.2), at("mcg", -37.8, 145), at("kolkata", 22.6, 88.3)];
     expect(spreadPick(ranked, 3).map((q) => q.id)).toEqual(["mumbai", "lords", "mcg"]);
     expect(spreadPick(ranked, 5).map((q) => q.id)).toEqual(["mumbai", "delhi", "chennai", "lords", "mcg"]);
+  });
+});
+
+describe("the day's public challenges", () => {
+  it("match the real games' points and drop times", () => {
+    const max = Object.fromEntries(CHALLENGES.map((c) => [c.id, c.max]));
+    expect(max.daily).toBe(100 * MULTIPLIERS.reduce((a, b) => a + b, 0));
+    expect(max.mtest).toBe(100 * TEST_MULTS.reduce((a, b) => a + b, 0));
+    expect(DAY_MAX).toBe(6100);
+    const at = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
+    expect(at(CHALLENGES[1].opens)).toBe(SLOT_MINUTES_IST["test:am"]);
+    expect(at(CHALLENGES[2].opens)).toBe(SLOT_MINUTES_IST["daily:pm"]);
+    expect(at(CHALLENGES[3].opens)).toBe(SLOT_MINUTES_IST["test:pm"]);
+  });
+  it("names round keys", () => {
+    expect(challengeOfKey("2026-10-04")).toBe("daily");
+    expect(challengeOfKey("test-am-2026-10-04")).toBe("mtest");
+    expect(challengeOfKey("evening-2026-10-04")).toBe("evening");
+    expect(challengeOfKey("test-2026-10-04")).toBe("etest");
+    expect(challengeOfKey("demo-reel")).toBeNull();
   });
 });
