@@ -15,7 +15,9 @@ export type Moment = { indexed: boolean; origin: string; id: string; text: strin
 export const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/&/g, " and ").replace(/['’‘`]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 /** The ground's own name (drop the ", City" tail for the hub title). */
 export const groundName = (answer: string) => answer.split(",")[0].trim();
-const playerOf = (text: string) => text.match(/^Where did (.+?) (?:score|take) /)?.[1] ?? null;
+// "Where did X score/take …?" (Cricsheet) or a Wikidata birthplace ("This is where X, the …, was born." / "X played for …").
+const playerOf = (text: string) => text.match(/^Where did (.+?) (?:score|take) /)?.[1]
+  ?? text.match(/^(?:This is where )?(.+?)(?:, (?:the|who) [^,]+,)? (?:was born|played for .+?, but was born)/)?.[1] ?? null;
 
 export const publicMoments = unstable_cache(async (): Promise<Moment[]> => {
   const db = await getDb();

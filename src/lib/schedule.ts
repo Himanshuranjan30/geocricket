@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { TEST_MULTS } from "@/content/pool";
-import { addDays, dayEndMs, MULTIPLIERS, slotKey, slotMs, testDay, type Game2, type Slot } from "./game";
+import { addDays, dayEndMs, MULTIPLIERS, slotKey, slotMs, spreadPick, testDay, type Game2, type Slot } from "./game";
 import { fame } from "./seen";
 
 // Every day's four games, in play order. The morning Daily is the plain dated round (always open from midnight).
@@ -48,7 +48,7 @@ export async function ensureSchedule(days = 7) {
     if (opensMs !== r.opensMs) { await db.update(rounds).set({ opensMs, closesMs: dayEndMs(s.day) }).where(eq(rounds.date, r.date)); retimed++; }
   }
 
-  const live = await db.select({ id: questions.id, text: questions.text, origin: questions.origin, pool: questions.pool }).from(questions)
+  const live = await db.select({ id: questions.id, text: questions.text, origin: questions.origin, pool: questions.pool, lat: questions.lat, lng: questions.lng }).from(questions)
     .where(and(eq(questions.status, "live"), inArray(questions.pool, Object.keys(POOL_ORDER))));
   const borrowable = live.some((q) => q.pool === "versus");
   const seenIds = borrowable ? new Set((await db.selectDistinct({ q: seen.questionId }).from(seen)).map((r) => r.q)) : new Set<string>();
@@ -84,7 +84,8 @@ export async function ensureSchedule(days = 7) {
       const key = slotKey(day, g.game, g.slot);
       if (have.has(key)) continue;
       if (free.length < g.mults.length) { short = true; break outer; }
-      const picked = free.splice(0, g.mults.length);
+      const picked = spreadPick(free, g.mults.length); // best known first, but a round travels the cricket world
+      for (const q of picked) free.splice(free.indexOf(q), 1);
       const borrowed = picked.filter((q) => q.pool === "nets" || q.pool === "versus").map((q) => q.id);
       if (borrowed.length) await db.update(questions).set({ pool: "edition" }).where(inArray(questions.id, borrowed));
       const window = g.kind === "daily" ? {} : { opensMs: slotMs(day, g.game, g.slot), closesMs: dayEndMs(day) };

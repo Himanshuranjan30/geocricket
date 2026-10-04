@@ -51,3 +51,4 @@ content/cricsheet/
 # local tooling
 .vitest
 .claude
+content/wikidata/

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dailyOpen, dayEndMs, dayStartMs, distanceKm, dropMs, greatCircle, istDate, nextDrops, pointsFor, slotMs, testDay, testWindow, tierOf, weekOf } from "./game";
+import { addDays, dailyOpen, spreadPick, zoneOf, dayEndMs, dayStartMs, distanceKm, dropMs, greatCircle, istDate, nextDrops, pointsFor, slotMs, testDay, testWindow, tierOf, weekOf } from "./game";
 
 describe("game logic", () => {
   it("measures distance: Mumbai to Durban is ~7,030 km", () => {
@@ -95,5 +95,23 @@ describe("drop times follow the player's country", () => {
     expect(dropLabel("test", "IN")).toBe("8:00 PM IST");
     expect(timeAt(at, "BR")).toBe("11:30 PM Brazil time"); // not in the curated map: runtime zone data
     expect(timeAt(at, "IS")).toBe("2:30 AM Iceland time");
+  });
+});
+
+describe("round spread", () => {
+  const at = (id: string, lat: number, lng: number) => ({ id, lat, lng });
+  it("knows the cricket regions", () => {
+    expect(zoneOf(18.94, 72.83)).toBe("south-asia"); // Mumbai
+    expect(zoneOf(-33.89, 151.22)).toBe("oceania"); // Sydney
+    expect(zoneOf(51.53, -0.17)).toBe("europe"); // Lord's
+    expect(zoneOf(13.1, -59.6)).toBe("americas"); // Bridgetown
+    expect(zoneOf(-26.13, 28.06)).toBe("africa"); // Johannesburg
+    expect(zoneOf(25.05, 55.22)).toBe("gulf"); // Dubai
+    expect(zoneOf(1.3, 103.8)).toBe("east-asia"); // Singapore
+  });
+  it("spreads a round across regions before repeating one, keeping rank order", () => {
+    const ranked = [at("mumbai", 18.9, 72.8), at("delhi", 28.6, 77.2), at("chennai", 13.1, 80.3), at("lords", 51.5, -0.2), at("mcg", -37.8, 145), at("kolkata", 22.6, 88.3)];
+    expect(spreadPick(ranked, 3).map((q) => q.id)).toEqual(["mumbai", "lords", "mcg"]);
+    expect(spreadPick(ranked, 5).map((q) => q.id)).toEqual(["mumbai", "delhi", "chennai", "lords", "mcg"]);
   });
 });

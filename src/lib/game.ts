@@ -52,6 +52,31 @@ export const dropMs = (day: string, game: Game2) => slotMs(day, game, game === "
 export const dayEndMs = (day: string) => Date.parse(`${day}T23:59:59.999+05:30`);
 
 /** Today's date in India. */
+/** Rough cricket region of a pin, for spreading a round's questions around the world. */
+export function zoneOf(lat: number, lng: number) {
+  if (lng < -30) return "americas"; // incl. the Caribbean
+  if (lat < -10 && lng > 110) return "oceania";
+  if (lng > 92) return "east-asia";
+  if (lng >= 60 && lat > 0) return "south-asia";
+  if (lng >= 35 && lat > 12) return "gulf";
+  if (lat < 35) return "africa";
+  return "europe";
+}
+
+/**
+ * Pick `n` questions from `ranked` (best first) so a round travels: within the top `window`, no region gets a second
+ * question until every region present has had one (then a third, and so on). Keeps ranked order within the round.
+ */
+export function spreadPick<T extends { lat: number; lng: number }>(ranked: T[], n: number, window = 60): T[] {
+  const pool = ranked.slice(0, Math.max(window, n)), took = new Set<T>(), per = new Map<string, number>();
+  for (let cap = 1; took.size < n && cap <= n; cap++) for (const q of pool) {
+    if (took.size >= n) break;
+    const z = zoneOf(q.lat, q.lng);
+    if (!took.has(q) && (per.get(z) ?? 0) < cap) { took.add(q); per.set(z, (per.get(z) ?? 0) + 1); }
+  }
+  return pool.filter((q) => took.has(q));
+}
+
 export function istDate(d = new Date()) {
   return ymdIst(d.getTime());
 }

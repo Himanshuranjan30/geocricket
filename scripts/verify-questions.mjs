@@ -25,14 +25,14 @@ for (const group of byText.values()) if (group.length > 1) for (const r of group
 // 2. Cricsheet: re-read the match and check the claim's shape against it.
 const venueOf = new Map();
 for (const r of rows) {
-  const m = /^cs-(\d+)-(bat|bowl|ten|final)/.exec(r.id); if (!m) continue;
+  const m = /^cs-(\d+)-(bat|bowl|ten|final|hat|total|collapse|tie|superover|onewkt|tight|upset)/.exec(r.id); if (!m) continue;
   const file = `${DIR}/json/${m[1]}.json`;
   if (!existsSync(file)) { flag(r, "no-source", file); continue; }
   const info = JSON.parse(readFileSync(file, "utf8")).info;
   venueOf.set(r.id, `${info.venue}${info.city && !info.venue.includes(info.city) ? `, ${info.city}` : ""}`);
   if (m[2] === "final") { // the question must name the real knockout stage
     const stage = stageName(info.event?.stage);
-    if (!stage || !r.text.endsWith(` ${stage}?`)) flag(r, "wrong-stage", `stage is "${info.event?.stage ?? "?"}"`);
+    if (!stage || !new RegExp(` ${stage}( at this ground\\.|\\?)$`).test(r.text)) flag(r, "wrong-stage", `stage is "${info.event?.stage ?? "?"}"`);
   }
   // The matched ground should share words with Cricsheet's own venue name.
   const v = toks(info.venue.split(",")[0]), a = toks(r.answer.split(",")[0]);

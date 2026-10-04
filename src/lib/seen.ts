@@ -21,14 +21,16 @@ export async function seenBy(playerIds: string[]) {
 }
 
 // How well known a question's moment is, so practice and duels lead with ones players can actually place. Hand-written
-// questions are famous by construction; Cricsheet ones rank by the teams and competition they mention.
+// questions are famous by construction; Cricsheet ones rank by the teams and competition they mention; Wikidata
+// birthplaces sit in between. Associate cricket is only nudged down (not buried), so the whole cricket world shows up.
 const MAJOR = /\b(India|Australia|England|South Africa|New Zealand|Pakistan|Sri Lanka|West Indies|Bangladesh|Afghanistan|Zimbabwe|Ireland)\b/g;
 const BIG = /\b(Test|ODI|T20I|World Cup|World Twenty20|Indian Premier League|Big Bash|Champions Trophy|Ashes)\b/;
 const MINOR = /Qualifier|Pentangular|Premier Cup|Continental Cup|Asian Games|Tri-Nation|Quadrangular|Emerging|Associate/i;
 export function fame(q: { text: string; origin: string }) {
-  if (q.origin !== "cricsheet") return 6;
   const teams = new Set(q.text.match(MAJOR) ?? []).size;
-  return (teams >= 2 ? 3 : teams === 1 ? 1 : -3) + (BIG.test(q.text) ? 2 : 0) - (MINOR.test(q.text) ? 4 : 0);
+  if (q.origin === "wikidata") return (teams ? 2 : 1) + (q.text.includes("but was born here") ? 2 : 0);
+  if (q.origin !== "cricsheet") return 6;
+  return (teams >= 2 ? 3 : teams === 1 ? 1 : -1) + (BIG.test(q.text) ? 2 : 0) - (MINOR.test(q.text) ? 2 : 0);
 }
 
 /**

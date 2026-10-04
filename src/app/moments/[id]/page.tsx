@@ -12,7 +12,7 @@ export const revalidate = 3600;
 export async function generateMetadata({ params }: PageProps<"/moments/[id]">): Promise<Metadata> {
   const m = await momentById((await params).id);
   if (!m) return {};
-  const title = m.player ? `${m.text.replace(/^Where did /, "").replace(/\?$/, "")}: ${m.ground}` : `${m.answer}: ${m.when}`;
+  const title = m.player ? (m.text.startsWith("Where did ") ? `${m.text.replace(/^Where did /, "").replace(/\?$/, "")}: ${m.ground}` : `${m.player}'s birthplace: ${m.answer}`) : `${m.answer}: ${m.when}`;
   // Generated (Cricsheet) moments stay out of the index until released in batches (scaled-content policy); hubs carry them.
   return { title, description: `${m.story} Answer: ${m.answer}. Play it on GeoCricket, the daily cricket geography game.`.slice(0, 300), alternates: { canonical: `/moments/${m.id}` },
     robots: indexable(m) ? undefined : { index: false, follow: true } };

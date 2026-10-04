@@ -14,3 +14,12 @@ test("well-known moments rank above obscure ones", () => {
   expect(bates).toBeGreaterThan(qualifier);
   expect(japan).toBeLessThan(0);
 });
+
+test("birthplaces rank between hand-written moments and obscure matches; associates are not buried", () => {
+  const born = fame({ text: "Usman Khawaja played for Australia, but was born here.", origin: "wikidata" });
+  const plain = fame({ text: "This is where Binod Das, the Nepalese cricketer, was born.", origin: "wikidata" });
+  const upset = fame({ text: "Nepal stunned Netherlands by 6 wickets in a 2024 T20I at this ground.", origin: "cricsheet" });
+  expect(fame({ text: "AB de Villiers hit the fastest ODI hundred at this ground.", origin: "manual" })).toBeGreaterThan(born);
+  expect(born).toBeGreaterThan(plain);
+  expect(upset).toBeGreaterThan(-1); // an associate T20I still gets picked sometimes
+});
