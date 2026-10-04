@@ -329,3 +329,10 @@ a:hover > .mode-card, button:hover > .mode-card { transform: translateY(-2px); f
 .fig-poses .fig-pose.on { opacity: 1; }
 .dash-figure, .dash-figure * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .fig-poses .fig-pose { transition: none; } }
+
+/* Home daily-prize pill (PrizePill): a soft light sweep every few seconds so the hook is noticed without shouting. */
+.prize-pill { position: relative; overflow: hidden; }
+.prize-pill::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%); pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 236, 160, .35) 50%, transparent 70%); animation: prize-shine 5s ease-in-out 1.2s infinite; }
+@keyframes prize-shine { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .prize-pill::after { animation: none; } }

@@ -18,6 +18,7 @@ import { legendOf } from "@/lib/legends";
 import { timeAt, untilLabel } from "@/lib/resetTime";
 import { AccountMenu } from "./AccountMenu";
 import { LeaderboardPanel } from "./LeaderboardPanel";
+import { PrizePill } from "./PrizePill";
 import { WhoCard } from "./WhoCard";
 import { AdSlot } from "./AdSlot";
 import { MobileNav } from "./MobileNav";
@@ -210,7 +211,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
         </div>
       </header>
 
-      {/* Top centre: last live duel + who's playing right now. */}
+      {/* Top centre: the hook (tagline + daily prize), last live duel, who's playing right now. */}
       <div className="tv-ui absolute inset-x-0 top-[calc(env(safe-area-inset-top)+70px)] z-10 flex flex-col items-center gap-2 px-4 rise">
         {pitch && (
           <h1 className="max-w-[92vw] text-center text-[15px] leading-snug text-cream [text-shadow:0_1px_10px_rgba(10,6,40,.9)] lg:text-base">
@@ -218,6 +219,7 @@ export function Landing({ challenge, logos = {} }: { challenge?: number; logos?:
             <span className="whitespace-nowrap">Can you pin them all?</span>
           </h1>
         )}
+        <PrizePill />
         {challenge != null && (
           <div className="rounded-2xl border border-ball/60 bg-ball/20 px-4 py-2 text-sm font-semibold"><Sword weight="fill" size={16} className="-mt-0.5 mr-1.5 inline text-ok" />A friend scored {challenge}/1000. Can you beat it?</div>
         )}
