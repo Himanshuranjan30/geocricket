@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#120E3A", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 const adsense = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+const live = process.env.VERCEL_ENV === "production" && !process.env.VERCEL_URL?.includes("staging"); // geocricket.app itself
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   // Warm up everything the globe needs while the page is still parsing.
@@ -45,13 +46,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           { "@context": "https://schema.org", "@type": "WebSite", name: "GeoCricket", alternateName: ["Geo Cricket", "GeoCricket game"], url: `${site}/` }, // Google's site name
         ]).replace(/</g, "\\u003c") }} />
         <Analytics />
+        {/* DataFast analytics (datafa.st): the real site only, so local and staging visits don't count. */}
+        {live && <script defer data-website-id="dfid_6j6yTA2sZi0HT5AyhSiqi" data-domain="geocricket.app" src="https://datafa.st/js/script.js" />}
         <AuthLayer />
         {adsense && (
           <>
             {/* Plain async tag (AdSense flags next/script's data-nscript). Test ads outside production so our own traffic never counts.
                 The shim gives the games Ad Placement API (adBreak/adConfig: interstitials, rewarded) the same queue. */}
             <script async crossOrigin="anonymous" src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsense}`}
-              data-ad-frequency-hint="120s" {...(process.env.VERCEL_ENV === "production" && !process.env.VERCEL_URL?.includes("staging") ? {} : { "data-adbreak-test": "on" })} />
+              data-ad-frequency-hint="120s" {...(live ? {} : { "data-adbreak-test": "on" })} />
             <script dangerouslySetInnerHTML={{ __html: "window.adsbygoogle=window.adsbygoogle||[];window.adBreak=window.adConfig=function(o){window.adsbygoogle.push(o)};" }} />
           </>
         )}
