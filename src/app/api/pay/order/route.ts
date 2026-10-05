@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDb, schema } from "@/db";
 import { dodo, dodoEnabled } from "@/lib/dodo";
@@ -27,6 +28,9 @@ export async function POST(req: Request) {
   const user = await sessionUser();
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
   const offer = await offerFor(pid, true);
+  // DataFast revenue attribution: the visitor cookie set by datafa.st's script rides along in the payment's metadata, and
+  // Dodo's DataFast webhook reports the sale against that visitor's marketing channel (datafa.st/docs/revenue-attribution-guide).
+  const datafast = (await cookies()).get("datafast_visitor_id")?.value;
   let session: Awaited<ReturnType<ReturnType<typeof dodo>["checkoutSessions"]["create"]>>;
   try {
     session = await dodo().checkoutSessions.create({
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
     product_cart: [{ product_id: process.env.DODO_LEGEND_PRODUCT_ID!, quantity: 1 }],
     ...(user?.email ? { customer: { email: user.email, name: user.name ?? undefined } } : {}),
     return_url: `${site}/locker?bought=${id}`,
-    metadata: { order: orderId, item: `legend:${id}` },
+    metadata: { order: orderId, item: `legend:${id}`, ...(datafast ? { datafast_visitor_id: datafast } : {}) },
     });
   } catch (e) {
     // Dodo refused the checkout (e.g. MERCHANT_NOT_LIVE while the live account is still being verified): tell the
